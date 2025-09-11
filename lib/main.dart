@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'views/screens/activity_log_screen.dart';
+import 'views/screens/session_log_screen.dart';
 import 'views/theme/app_theme.dart';
 
 void main() {
@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
       title: 'Sacra',
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      home: const ActivityLogScreen(),
+      home: const SessionLogScreen(),
     );
   }
 }
