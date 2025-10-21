@@ -245,16 +245,18 @@ class _AttemptsList extends ConsumerWidget {
       itemBuilder: (BuildContext context, int index) {
         final int reversedIndex = attempts.length - 1 - index;
         final ClimbAttempt a = attempts[reversedIndex];
-        return _AttemptTile(a);
+        final int displayNumber = reversedIndex + 1; // total climbs up to this attempt
+        return _AttemptTile(a, displayNumber);
       },
     );
   }
 }
 
 class _AttemptTile extends ConsumerWidget {
-  const _AttemptTile(this.a);
+  const _AttemptTile(this.a, this.number);
 
   final ClimbAttempt a;
+  final int number;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -281,7 +283,21 @@ class _AttemptTile extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(title),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text('#$number'),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(title),
+            ],
+          ),
           if (a is BoulderingAttempt) _BoulderAttemptEditor(a as BoulderingAttempt),
         ],
       ),
