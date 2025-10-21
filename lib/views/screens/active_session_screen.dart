@@ -31,31 +31,23 @@ class ActiveSessionScreen extends ConsumerWidget {
     final Session? session = state.activeSession;
     final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
 
-    if (session == null) {
-      // If no active session, return to previous screen.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (Navigator.of(context).canPop()) {
-          Navigator.of(context).pop();
-        }
-      });
-      return const SizedBox.shrink();
-    }
-
     return AdaptiveScaffold(
       title: Text(
-        'Active: ${session.climbType.name}',
+        session == null ? 'Active Session' : 'Active: ${session.climbType.name}',
         style: AppTextStyles.title,
       ),
-      actions: <Widget>[
-        AdaptiveIconButton(
-          onPressed: () {
-            vm.endSession();
-            Navigator.of(context).pop();
-          },
-          tooltip: 'End Session',
-          icon: Icon(_adaptiveStopIcon()),
-        ),
-      ],
+      actions: session == null
+          ? null
+          : <Widget>[
+              AdaptiveIconButton(
+                onPressed: () {
+                  vm.endSession();
+                  Navigator.of(context).pop();
+                },
+                tooltip: 'End Session',
+                icon: Icon(_adaptiveStopIcon()),
+              ),
+            ],
       body: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(
@@ -63,7 +55,9 @@ class ActiveSessionScreen extends ConsumerWidget {
           ),
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
-            child: _ActiveBody(session: session),
+            child: session == null
+                ? _StartOptions(onStart: vm.startSession)
+                : _ActiveBody(session: session),
           ),
         ),
       ),
@@ -369,6 +363,46 @@ class _EmptyAttempts extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Text('No attempts yet. Add one below.');
+  }
+}
+
+class _StartOptions extends StatelessWidget {
+  const _StartOptions({required this.onStart});
+
+  final void Function(ClimbType type) onStart;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: <Widget>[
+        Text('Start a new session', style: AppTextStyles.title, textAlign: TextAlign.center),
+        const SizedBox(height: AppSpacing.md),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: <Widget>[
+            AdaptiveFilledButton.icon(
+              onPressed: () => onStart(ClimbType.bouldering),
+              icon: const Icon(CupertinoIcons.circle_grid_3x3_fill),
+              label: const Text('Bouldering'),
+            ),
+            AdaptiveFilledButton.icon(
+              onPressed: () => onStart(ClimbType.topRope),
+              icon: const Icon(CupertinoIcons.arrow_up_to_line),
+              label: const Text('Top Rope'),
+            ),
+            AdaptiveFilledButton.icon(
+              onPressed: () => onStart(ClimbType.lead),
+              icon: const Icon(CupertinoIcons.bolt_fill),
+              label: const Text('Lead'),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }
 

@@ -33,7 +33,12 @@ class _HomeNavState extends State<HomeNav> {
           ],
         ),
         tabBuilder: (BuildContext context, int i) => CupertinoTabView(
-          builder: (_) => pages[i],
+          onGenerateRoute: (RouteSettings settings) {
+            return CupertinoPageRoute<Widget>(
+              builder: (_) => pages[i],
+              settings: settings,
+            );
+          },
         ),
       );
     }

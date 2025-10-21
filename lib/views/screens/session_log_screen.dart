@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+// ignore: unused_import
 import '../../models/activity.dart';
 import '../../models/session.dart';
 import '../../viewmodels/session_log_view_model.dart';
@@ -16,11 +17,7 @@ IconData _adaptivePlayIcon() {
       : Icons.play_arrow;
 }
 
-IconData _adaptiveRunIcon() {
-  return (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS)
-      ? CupertinoIcons.person_2_fill
-      : Icons.directions_run;
-}
+// Removed unused run icon helper after moving start controls to Active tab.
 
 class SessionLogScreen extends ConsumerWidget {
   const SessionLogScreen({super.key});
@@ -28,64 +25,12 @@ class SessionLogScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final SessionLogState state = ref.watch(sessionLogProvider);
-    final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
+    // ViewModel not needed here after removing start controls from app bar.
 
     // Active session navigation is available via bottom navigation.
 
     return AdaptiveScaffold(
       title: const Text('Session Log'),
-      actions: <Widget>[
-        if (state.activeSession == null)
-          if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS)
-            AdaptiveIconButton(
-              icon: const Icon(CupertinoIcons.play_fill),
-              tooltip: 'Start Session',
-              onPressed: () async {
-                await showAdaptiveActionSheet<ClimbType>(
-                  context: context,
-                  title: 'Start Session',
-                  items: <MapEntry<ClimbType, String>>[
-                    MapEntry<ClimbType, String>(ClimbType.bouldering, 'Start Bouldering'),
-                    MapEntry<ClimbType, String>(ClimbType.topRope, 'Start Top Rope'),
-                    MapEntry<ClimbType, String>(ClimbType.lead, 'Start Lead'),
-                  ],
-                  onSelected: (ClimbType t) => vm.startSession(t),
-                );
-              },
-            )
-          else
-            PopupMenuButton<ClimbType>(
-              onSelected: (ClimbType t) => vm.startSession(t),
-              itemBuilder: (BuildContext context) => <PopupMenuEntry<ClimbType>>[
-                const PopupMenuItem<ClimbType>(
-                  value: ClimbType.bouldering,
-                  child: Text('Start Bouldering'),
-                ),
-                const PopupMenuItem<ClimbType>(
-                  value: ClimbType.topRope,
-                  child: Text('Start Top Rope'),
-                ),
-                const PopupMenuItem<ClimbType>(
-                  value: ClimbType.lead,
-                  child: Text('Start Lead'),
-                ),
-              ],
-              icon: const Icon(Icons.play_arrow),
-              tooltip: 'Start Session',
-            )
-        else
-          AdaptiveIconButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<Widget>(
-                  builder: (_) => const ActiveSessionScreen(),
-                ),
-              );
-            },
-            tooltip: 'Go to Active Session',
-            icon: Icon(_adaptiveRunIcon()),
-          ),
-      ],
       body: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(
