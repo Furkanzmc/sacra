@@ -170,7 +170,8 @@ class _PastSessionsList extends StatelessWidget {
       separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
       itemBuilder: (BuildContext context, int index) {
         final Session s = sessions[index];
-        final String when = adaptiveFormatTime(context, s.startTime);
+        final DateTime recorded = s.endTime ?? s.startTime;
+        final String when = adaptiveFormatDate(context, recorded);
         final int count = s.attempts.length;
         return Container(
           padding: const EdgeInsets.all(AppSpacing.md),

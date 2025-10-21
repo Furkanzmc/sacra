@@ -56,6 +56,18 @@ String adaptiveFormatTime(BuildContext context, DateTime dateTime) {
   return TimeOfDay.fromDateTime(dateTime).format(context);
 }
 
+String adaptiveFormatDate(BuildContext context, DateTime dateTime) {
+  // Simple cross-platform date formatter: "MMM d, yyyy"
+  const List<String> months = <String>[
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  final String month = months[dateTime.month - 1];
+  final String day = dateTime.day.toString();
+  final String year = dateTime.year.toString();
+  return '$month $day, $year';
+}
+
 class AdaptiveIconButton extends StatelessWidget {
   const AdaptiveIconButton({super.key, required this.icon, required this.onPressed, this.tooltip});
 
