@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/activity.dart';
@@ -22,7 +23,7 @@ class _VGradePopupScrubberState extends State<VGradePopupScrubber> {
   OverlayEntry? _entry;
   ValueNotifier<int>? _indexNotifier;
   double? _popupTop;
-  double? _popupLeft;
+  double? _popupLeft; // reserved for future horizontal placement tweaks
   static const double _itemHeight = 36;
   static const double _popupWidth = 140;
 
@@ -271,17 +272,34 @@ class _Segment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          border: Border.all(color: scheme.outlineVariant),
-          borderRadius: BorderRadius.circular(8),
+    if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
+      return CupertinoButton(
+        padding: EdgeInsets.zero,
+        onPressed: onPressed,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            border: Border.all(color: CupertinoColors.separator.resolveFrom(context)),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(label),
         ),
-        child: Text(label),
+      );
+    }
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            border: Border.all(color: scheme.outlineVariant),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(label),
+        ),
       ),
     );
   }

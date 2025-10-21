@@ -1,3 +1,5 @@
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,6 +9,18 @@ import '../../viewmodels/session_log_view_model.dart';
 import '../theme/app_theme.dart';
 import '../widgets/responsive.dart';
 import '../widgets/v_grade_scrubber.dart';
+import '../widgets/adaptive.dart';
+IconData _adaptiveStopIcon() {
+  return (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS)
+      ? CupertinoIcons.stop_fill
+      : Icons.stop;
+}
+
+IconData _adaptiveAddIcon() {
+  return (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS)
+      ? CupertinoIcons.add
+      : Icons.add;
+}
 
 class ActiveSessionScreen extends ConsumerWidget {
   const ActiveSessionScreen({super.key});
@@ -27,23 +41,21 @@ class ActiveSessionScreen extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Active: ${session.climbType.name}',
-          style: AppTextStyles.title,
-        ),
-        actions: <Widget>[
-          IconButton(
-            onPressed: () {
-              vm.endSession();
-              Navigator.of(context).pop();
-            },
-            tooltip: 'End Session',
-            icon: const Icon(Icons.stop),
-          ),
-        ],
+    return AdaptiveScaffold(
+      title: Text(
+        'Active: ${session.climbType.name}',
+        style: AppTextStyles.title,
       ),
+      actions: <Widget>[
+        AdaptiveIconButton(
+          onPressed: () {
+            vm.endSession();
+            Navigator.of(context).pop();
+          },
+          tooltip: 'End Session',
+          icon: Icon(_adaptiveStopIcon()),
+        ),
+      ],
       body: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(
@@ -71,7 +83,7 @@ class _ActiveBody extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         Text(
-          TimeOfDay.fromDateTime(session.startTime).format(context),
+          adaptiveFormatTime(context, session.startTime),
           style: AppTextStyles.body,
         ),
         const SizedBox(height: AppSpacing.md),
@@ -159,16 +171,16 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    Checkbox(
+                    AdaptiveSwitch(
                       value: _completed,
-                      onChanged: (bool? v) => setState(() => _completed = v ?? false),
+                      onChanged: (bool v) => setState(() => _completed = v),
                     ),
                     const Text('Completed'),
                   ],
                 ),
-                FilledButton.icon(
+                AdaptiveFilledButton.icon(
                   onPressed: _onAdd,
-                  icon: const Icon(Icons.add),
+                  icon: Icon(_adaptiveAddIcon()),
                   label: const Text('Add'),
                 ),
               ],
@@ -333,22 +345,19 @@ class _BoulderAttemptEditorState extends ConsumerState<_BoulderAttemptEditor> {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Checkbox(
+            AdaptiveSwitch(
               value: _sent,
-              onChanged: (bool? v) {
-                final bool next = v ?? false;
-                setState(() => _sent = next);
-                vm.updateBoulderAttemptSent(widget.attempt.id, next);
+              onChanged: (bool v) {
+                setState(() => _sent = v);
+                vm.updateBoulderAttemptSent(widget.attempt.id, v);
               },
             ),
             const Text('Sent'),
           ],
         ),
-        TextField(
+        AdaptiveTextField(
           controller: _notes,
-          decoration: const InputDecoration(
-            labelText: 'Notes (optional)',
-          ),
+          labelText: 'Notes (optional)',
           minLines: 1,
           maxLines: 3,
           onChanged: (String v) => vm.updateBoulderAttemptNotes(widget.attempt.id, v.isEmpty ? null : v),

@@ -1,3 +1,5 @@
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,6 +9,18 @@ import '../../viewmodels/session_log_view_model.dart';
 import '../theme/app_theme.dart';
 import '../widgets/responsive.dart';
 import 'active_session_screen.dart';
+import '../widgets/adaptive.dart';
+IconData _adaptivePlayIcon() {
+  return (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS)
+      ? CupertinoIcons.play_fill
+      : Icons.play_arrow;
+}
+
+IconData _adaptiveRunIcon() {
+  return (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS)
+      ? CupertinoIcons.person_2_fill
+      : Icons.directions_run;
+}
 
 class SessionLogScreen extends ConsumerWidget {
   const SessionLogScreen({super.key});
@@ -24,11 +38,28 @@ class SessionLogScreen extends ConsumerWidget {
       });
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Session Log'),
-        actions: <Widget>[
-          if (state.activeSession == null)
+    return AdaptiveScaffold(
+      title: const Text('Session Log'),
+      actions: <Widget>[
+        if (state.activeSession == null)
+          if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS)
+            AdaptiveIconButton(
+              icon: const Icon(CupertinoIcons.play_fill),
+              tooltip: 'Start Session',
+              onPressed: () async {
+                await showAdaptiveActionSheet<ClimbType>(
+                  context: context,
+                  title: 'Start Session',
+                  items: <MapEntry<ClimbType, String>>[
+                    MapEntry<ClimbType, String>(ClimbType.bouldering, 'Start Bouldering'),
+                    MapEntry<ClimbType, String>(ClimbType.topRope, 'Start Top Rope'),
+                    MapEntry<ClimbType, String>(ClimbType.lead, 'Start Lead'),
+                  ],
+                  onSelected: (ClimbType t) => vm.startSession(t),
+                );
+              },
+            )
+          else
             PopupMenuButton<ClimbType>(
               onSelected: (ClimbType t) => vm.startSession(t),
               itemBuilder: (BuildContext context) => <PopupMenuEntry<ClimbType>>[
@@ -48,20 +79,19 @@ class SessionLogScreen extends ConsumerWidget {
               icon: const Icon(Icons.play_arrow),
               tooltip: 'Start Session',
             )
-          else
-            IconButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute<Widget>(
-                    builder: (_) => const ActiveSessionScreen(),
-                  ),
-                );
-              },
-              tooltip: 'Go to Active Session',
-              icon: const Icon(Icons.directions_run),
-            ),
-        ],
-      ),
+        else
+          AdaptiveIconButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<Widget>(
+                  builder: (_) => const ActiveSessionScreen(),
+                ),
+              );
+            },
+            tooltip: 'Go to Active Session',
+            icon: Icon(_adaptiveRunIcon()),
+          ),
+      ],
       body: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(
@@ -116,7 +146,7 @@ class _ActiveSessionButton extends ConsumerWidget {
     if (session == null) {
       return const SizedBox.shrink();
     }
-    return FilledButton.icon(
+    return AdaptiveFilledButton.icon(
       onPressed: () {
         Navigator.of(context).push(
           MaterialPageRoute<Widget>(
@@ -124,7 +154,7 @@ class _ActiveSessionButton extends ConsumerWidget {
           ),
         );
       },
-      icon: const Icon(Icons.play_arrow),
+      icon: Icon(_adaptivePlayIcon()),
       label: Text('Resume ${session.climbType.name} session'),
     );
   }
@@ -146,7 +176,7 @@ class _PastSessionsList extends StatelessWidget {
       separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
       itemBuilder: (BuildContext context, int index) {
         final Session s = sessions[index];
-        final String when = TimeOfDay.fromDateTime(s.startTime).format(context);
+        final String when = adaptiveFormatTime(context, s.startTime);
         final int count = s.attempts.length;
         return Container(
           padding: const EdgeInsets.all(AppSpacing.md),
