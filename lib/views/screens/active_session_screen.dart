@@ -10,6 +10,7 @@ import '../theme/app_theme.dart';
 import '../widgets/responsive.dart';
 import '../widgets/v_grade_scrubber.dart';
 import '../widgets/adaptive.dart';
+import '../widgets/navigation_scope.dart';
 IconData _adaptiveStopIcon() {
   return (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS)
       ? CupertinoIcons.stop_fill
@@ -42,7 +43,8 @@ class ActiveSessionScreen extends ConsumerWidget {
               AdaptiveIconButton(
                 onPressed: () {
                   vm.endSession();
-                  Navigator.of(context).pop();
+                  final NavigationScope? scope = NavigationScope.of(context);
+                  scope?.setTab(0);
                 },
                 tooltip: 'End Session',
                 icon: Icon(_adaptiveStopIcon()),
