@@ -30,13 +30,7 @@ class SessionLogScreen extends ConsumerWidget {
     final SessionLogState state = ref.watch(sessionLogProvider);
     final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
 
-    if (state.activeSession != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute<Widget>(builder: (_) => const ActiveSessionScreen()),
-        );
-      });
-    }
+    // Active session navigation is available via bottom navigation.
 
     return AdaptiveScaffold(
       title: const Text('Session Log'),

@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'views/screens/session_log_screen.dart';
+import 'views/screens/home_nav.dart';
 import 'views/theme/app_theme.dart';
 
 void main() {
@@ -20,14 +20,14 @@ class MyApp extends StatelessWidget {
     if (isCupertino) {
       return const CupertinoApp(
         title: 'Sacra',
-        home: SessionLogScreen(),
+        home: HomeNav(),
       );
     }
     return MaterialApp(
       title: 'Sacra',
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      home: const SessionLogScreen(),
+      home: const HomeNav(),
     );
   }
 }
