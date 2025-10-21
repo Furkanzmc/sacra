@@ -5,6 +5,11 @@ import 'package:flutter/material.dart';
 bool get _isCupertinoPlatform => defaultTargetPlatform == TargetPlatform.iOS ||
     defaultTargetPlatform == TargetPlatform.macOS;
 
+// Global adaptive design tokens
+const double kCardBaseRadiusCupertino = 14;
+const double kCardBaseRadiusMaterial = 12;
+const double kCardCornerRadiusScale = 1.3; // +30%
+
 class AdaptiveScaffold extends StatelessWidget {
   const AdaptiveScaffold({
     super.key,
@@ -66,6 +71,58 @@ String adaptiveFormatDate(BuildContext context, DateTime dateTime) {
   final String day = dateTime.day.toString();
   final String year = dateTime.year.toString();
   return '$month $day, $year';
+}
+
+class AdaptiveCard extends StatelessWidget {
+  const AdaptiveCard({
+    super.key,
+    required this.child,
+    this.padding,
+    this.onTap,
+    this.borderRadius,
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
+  final VoidCallback? onTap;
+  final double? borderRadius;
+
+  @override
+  Widget build(BuildContext context) {
+    final double base = _isCupertinoPlatform ? kCardBaseRadiusCupertino : kCardBaseRadiusMaterial;
+    final double r = (borderRadius ?? base) * kCardCornerRadiusScale;
+    if (_isCupertinoPlatform) {
+      final Widget content = Padding(
+        padding: padding ?? EdgeInsets.zero,
+        child: child,
+      );
+      final Widget card = DecoratedBox(
+        decoration: BoxDecoration(
+          color: CupertinoColors.systemBackground.resolveFrom(context),
+          borderRadius: BorderRadius.circular(r),
+          border: Border.all(color: CupertinoColors.separator.resolveFrom(context)),
+        ),
+        child: content,
+      );
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(r),
+        child: onTap == null ? card : GestureDetector(onTap: onTap, child: card),
+      );
+    }
+    final Widget content = Padding(
+      padding: padding ?? EdgeInsets.zero,
+      child: child,
+    );
+    final Widget materialChild = onTap == null
+        ? content
+        : InkWell(onTap: onTap, child: content, borderRadius: BorderRadius.circular(r));
+    return Card(
+      elevation: 1,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(r)),
+      child: materialChild,
+    );
+  }
 }
 
 class AdaptiveIconButton extends StatelessWidget {

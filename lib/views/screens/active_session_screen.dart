@@ -286,12 +286,8 @@ class _AttemptTile extends ConsumerWidget {
       title = 'Attempt';
     }
 
-    return Container(
+    return AdaptiveCard(
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[

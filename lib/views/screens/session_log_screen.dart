@@ -165,21 +165,35 @@ class _PastSessionsList extends StatelessWidget {
     if (sessions.isEmpty) {
       return const Center(child: Text('No past sessions'));
     }
-    return ListView.separated(
+    return GridView.builder(
       itemCount: sessions.length,
-      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 320,
+        mainAxisSpacing: AppSpacing.sm,
+        crossAxisSpacing: AppSpacing.sm,
+        childAspectRatio: 1.6,
+      ),
       itemBuilder: (BuildContext context, int index) {
         final Session s = sessions[index];
         final DateTime recorded = s.endTime ?? s.startTime;
-        final String when = adaptiveFormatDate(context, recorded);
+        final String date = adaptiveFormatDate(context, recorded);
+        final String time = adaptiveFormatTime(context, recorded);
         final int count = s.attempts.length;
-        return Container(
+        return AdaptiveCard(
           padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
-            borderRadius: BorderRadius.circular(8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Text(
+                s.climbType.name,
+                style: AppTextStyles.title,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text('$date • $time'),
+              Text('$count routes'),
+            ],
           ),
-          child: Text('${s.climbType.name} • $when • $count attempts'),
         );
       },
     );
