@@ -17,6 +17,7 @@ class _HomeNavState extends State<HomeNav> {
   int _index = 0;
   final GlobalKey<NavigatorState> _sessionsKey = GlobalKey<NavigatorState>();
   final GlobalKey<NavigatorState> _activeKey = GlobalKey<NavigatorState>();
+  final CupertinoTabController _cupertinoController = CupertinoTabController(initialIndex: 0);
 
   @override
   Widget build(BuildContext context) {
@@ -25,8 +26,12 @@ class _HomeNavState extends State<HomeNav> {
 
     if (isCupertino) {
       return NavigationScope(
-        setTab: (int i) => setState(() => _index = i),
+        setTab: (int i) {
+          _cupertinoController.index = i;
+          setState(() => _index = i);
+        },
         child: CupertinoTabScaffold(
+          controller: _cupertinoController,
           tabBar: CupertinoTabBar(
             items: const <BottomNavigationBarItem>[
               BottomNavigationBarItem(icon: Icon(CupertinoIcons.list_bullet), label: 'Sessions'),

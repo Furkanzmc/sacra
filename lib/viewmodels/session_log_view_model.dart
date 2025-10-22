@@ -8,18 +8,22 @@ import '../models/session.dart';
 class SessionLogState {
   const SessionLogState({
     required this.activeSession,
+    required this.editingSession,
     required this.pastSessions,
   });
 
   final Session? activeSession;
+  final Session? editingSession;
   final List<Session> pastSessions;
 
   SessionLogState copyWith({
     Session? activeSession,
+    Session? editingSession,
     List<Session>? pastSessions,
   }) {
     return SessionLogState(
       activeSession: activeSession,
+      editingSession: editingSession ?? this.editingSession,
       pastSessions: pastSessions ?? this.pastSessions,
     );
   }
@@ -28,7 +32,7 @@ class SessionLogState {
 class SessionLogViewModel extends Notifier<SessionLogState> {
   @override
   SessionLogState build() {
-    return const SessionLogState(activeSession: null, pastSessions: <Session>[]);
+    return const SessionLogState(activeSession: null, editingSession: null, pastSessions: <Session>[]);
   }
 
   void startSession(ClimbType type, {String? gymName}) {
@@ -52,45 +56,105 @@ class SessionLogViewModel extends Notifier<SessionLogState> {
       return;
     }
     final Session finished = current.copyWith(endTime: DateTime.now());
-    final List<Session> history = <Session>[finished, ...state.pastSessions];
-    state = SessionLogState(activeSession: null, pastSessions: history);
+    final int existingIndex = state.pastSessions.indexWhere((Session s) => s.id == finished.id);
+    if (existingIndex >= 0) {
+      final List<Session> updated = <Session>[...state.pastSessions];
+      updated[existingIndex] = finished;
+    state = SessionLogState(activeSession: null, editingSession: state.editingSession, pastSessions: updated);
+    } else {
+      final List<Session> history = <Session>[finished, ...state.pastSessions];
+      state = SessionLogState(activeSession: null, editingSession: state.editingSession, pastSessions: history);
+    }
+  }
+
+  void editPastSession(String sessionId) {
+    if (state.activeSession != null) {
+      return;
+    }
+    final int idx = state.pastSessions.indexWhere((Session s) => s.id == sessionId);
+    if (idx < 0) {
+      return;
+    }
+    final Session toEdit = state.pastSessions[idx];
+    state = state.copyWith(editingSession: toEdit);
+  }
+
+  void saveActiveSessionEdits() {
+    final Session? current = state.editingSession;
+    if (current == null) {
+      return;
+    }
+    final int existingIndex = state.pastSessions.indexWhere((Session s) => s.id == current.id);
+    if (existingIndex >= 0) {
+      final List<Session> updated = <Session>[...state.pastSessions];
+      updated[existingIndex] = current;
+      state = SessionLogState(activeSession: null, editingSession: null, pastSessions: updated);
+    } else {
+      final List<Session> history = <Session>[current, ...state.pastSessions];
+      state = SessionLogState(activeSession: null, editingSession: null, pastSessions: history);
+    }
   }
 
   void addAttempt(ClimbAttempt attempt) {
-    final Session? current = state.activeSession;
-    if (current == null) {
+    if (state.activeSession != null) {
+      final Session current = state.activeSession!;
+      final List<ClimbAttempt> next = <ClimbAttempt>[...current.attempts, attempt];
+      state = state.copyWith(activeSession: current.copyWith(attempts: next));
       return;
     }
-    final List<ClimbAttempt> next = <ClimbAttempt>[...current.attempts, attempt];
-    state = state.copyWith(activeSession: current.copyWith(attempts: next));
+    if (state.editingSession != null) {
+      final Session current = state.editingSession!;
+      final List<ClimbAttempt> next = <ClimbAttempt>[...current.attempts, attempt];
+      state = state.copyWith(editingSession: current.copyWith(attempts: next));
+    }
   }
 
   void updateBoulderAttemptSent(String attemptId, bool sent) {
-    final Session? current = state.activeSession;
-    if (current == null) {
+    if (state.activeSession != null) {
+      final Session current = state.activeSession!;
+      final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
+        if (a is BoulderingAttempt && a.id == attemptId) {
+          return a.copyWith(sent: sent);
+        }
+        return a;
+      }).toList();
+      state = state.copyWith(activeSession: current.copyWith(attempts: next));
       return;
     }
-    final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
-      if (a is BoulderingAttempt && a.id == attemptId) {
-        return a.copyWith(sent: sent);
-      }
-      return a;
-    }).toList();
-    state = state.copyWith(activeSession: current.copyWith(attempts: next));
+    if (state.editingSession != null) {
+      final Session current = state.editingSession!;
+      final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
+        if (a is BoulderingAttempt && a.id == attemptId) {
+          return a.copyWith(sent: sent);
+        }
+        return a;
+      }).toList();
+      state = state.copyWith(editingSession: current.copyWith(attempts: next));
+    }
   }
 
   void updateBoulderAttemptNotes(String attemptId, String? notes) {
-    final Session? current = state.activeSession;
-    if (current == null) {
+    if (state.activeSession != null) {
+      final Session current = state.activeSession!;
+      final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
+        if (a is BoulderingAttempt && a.id == attemptId) {
+          return a.copyWith(notes: notes);
+        }
+        return a;
+      }).toList();
+      state = state.copyWith(activeSession: current.copyWith(attempts: next));
       return;
     }
-    final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
-      if (a is BoulderingAttempt && a.id == attemptId) {
-        return a.copyWith(notes: notes);
-      }
-      return a;
-    }).toList();
-    state = state.copyWith(activeSession: current.copyWith(attempts: next));
+    if (state.editingSession != null) {
+      final Session current = state.editingSession!;
+      final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
+        if (a is BoulderingAttempt && a.id == attemptId) {
+          return a.copyWith(notes: notes);
+        }
+        return a;
+      }).toList();
+      state = state.copyWith(editingSession: current.copyWith(attempts: next));
+    }
   }
 }
 

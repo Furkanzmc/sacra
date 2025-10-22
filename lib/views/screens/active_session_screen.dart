@@ -29,7 +29,7 @@ class ActiveSessionScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final SessionLogState state = ref.watch(sessionLogProvider);
-    final Session? session = state.activeSession;
+    final Session? session = state.activeSession ?? state.editingSession;
     final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
 
     return AdaptiveScaffold(
@@ -40,15 +40,22 @@ class ActiveSessionScreen extends ConsumerWidget {
       actions: session == null
           ? null
           : <Widget>[
-              AdaptiveIconButton(
-                onPressed: () {
-                  vm.endSession();
-                  final NavigationScope? scope = NavigationScope.of(context);
-                  scope?.setTab(0);
-                },
-                tooltip: 'End Session',
-                icon: Icon(_adaptiveStopIcon()),
-              ),
+        AdaptiveIconButton(
+          onPressed: () {
+            vm.endSession();
+            // On iOS, if presented modally (fullscreenDialog), pop the sheet.
+            if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              }
+            } else {
+              final NavigationScope? scope = NavigationScope.of(context);
+              scope?.setTab(0);
+            }
+          },
+          tooltip: 'End Session',
+          icon: Icon(_adaptiveStopIcon()),
+        ),
             ],
       body: Center(
         child: ConstrainedBox(

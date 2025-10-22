@@ -100,13 +100,13 @@ class _ActiveSessionButton extends ConsumerWidget {
 }
 
 
-class _PastSessionsList extends StatelessWidget {
+class _PastSessionsList extends ConsumerWidget {
   const _PastSessionsList({required this.sessions});
 
   final List<Session> sessions;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (sessions.isEmpty) {
       return const Center(child: Text('No past sessions'));
     }
@@ -116,7 +116,7 @@ class _PastSessionsList extends StatelessWidget {
         maxCrossAxisExtent: 320,
         mainAxisSpacing: AppSpacing.sm,
         crossAxisSpacing: AppSpacing.sm,
-        childAspectRatio: 1.6,
+        childAspectRatio: 1.2,
       ),
       itemBuilder: (BuildContext context, int index) {
         final Session s = sessions[index];
@@ -126,6 +126,22 @@ class _PastSessionsList extends StatelessWidget {
         final int count = s.attempts.length;
         return AdaptiveCard(
           padding: const EdgeInsets.all(AppSpacing.md),
+          onTap: () {
+            final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
+            vm.editPastSession(s.id);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
+                showCupertinoSheet(
+                  context: context,
+                  builder: (_) => const ActiveSessionScreen(),
+                );
+              } else {
+                Navigator.of(context).push(
+                  MaterialPageRoute<Widget>(builder: (_) => const ActiveSessionScreen()),
+                );
+              }
+            });
+          },
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
