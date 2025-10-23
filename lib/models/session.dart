@@ -23,16 +23,25 @@ class BoulderingAttempt extends ClimbAttempt {
     required super.timestamp,
     required this.grade,
     required this.sent,
+    required this.completed,
+    this.attemptNumber,
     super.routeName,
     super.notes,
   });
 
   final Grade grade;
   final bool sent;
+  final bool? completed;
+  final int? attemptNumber;
+
+  int get attemptNo => attemptNumber ?? 1;
+  bool get isCompleted => completed ?? false;
 
   BoulderingAttempt copyWith({
     Grade? grade,
     bool? sent,
+    bool? completed,
+    int? attemptNumber,
     String? notes,
   }) {
     return BoulderingAttempt(
@@ -40,6 +49,8 @@ class BoulderingAttempt extends ClimbAttempt {
       timestamp: timestamp,
       grade: grade ?? this.grade,
       sent: sent ?? this.sent,
+      completed: completed ?? this.completed,
+      attemptNumber: attemptNumber ?? this.attemptNumber,
       routeName: routeName,
       notes: notes ?? this.notes,
     );

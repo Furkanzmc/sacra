@@ -116,6 +116,30 @@ class SessionLogViewModel extends Notifier<SessionLogState> {
     }
   }
 
+  void updateBoulderAttemptNumber(String attemptId, int attemptNumber) {
+    if (state.activeSession != null) {
+      final Session current = state.activeSession!;
+      final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
+        if (a is BoulderingAttempt && a.id == attemptId) {
+          return a.copyWith(attemptNumber: attemptNumber);
+        }
+        return a;
+      }).toList();
+      state = state.copyWith(activeSession: current.copyWith(attempts: next));
+      return;
+    }
+    if (state.editingSession != null) {
+      final Session current = state.editingSession!;
+      final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
+        if (a is BoulderingAttempt && a.id == attemptId) {
+          return a.copyWith(attemptNumber: attemptNumber);
+        }
+        return a;
+      }).toList();
+      state = state.copyWith(editingSession: current.copyWith(attempts: next));
+    }
+  }
+
   void updateBoulderAttemptSent(String attemptId, bool sent) {
     if (state.activeSession != null) {
       final Session current = state.activeSession!;
@@ -133,6 +157,30 @@ class SessionLogViewModel extends Notifier<SessionLogState> {
       final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
         if (a is BoulderingAttempt && a.id == attemptId) {
           return a.copyWith(sent: sent);
+        }
+        return a;
+      }).toList();
+      state = state.copyWith(editingSession: current.copyWith(attempts: next));
+    }
+  }
+
+  void updateBoulderAttemptCompleted(String attemptId, bool completed) {
+    if (state.activeSession != null) {
+      final Session current = state.activeSession!;
+      final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
+        if (a is BoulderingAttempt && a.id == attemptId) {
+          return a.copyWith(completed: completed);
+        }
+        return a;
+      }).toList();
+      state = state.copyWith(activeSession: current.copyWith(attempts: next));
+      return;
+    }
+    if (state.editingSession != null) {
+      final Session current = state.editingSession!;
+      final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
+        if (a is BoulderingAttempt && a.id == attemptId) {
+          return a.copyWith(completed: completed);
         }
         return a;
       }).toList();

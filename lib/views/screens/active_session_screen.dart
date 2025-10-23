@@ -211,6 +211,8 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
             timestamp: now,
             grade: grade,
             sent: _completed,
+            completed: _completed,
+            attemptNumber: 1,
           ),
         );
         break;
@@ -266,29 +268,69 @@ class _AttemptsList extends ConsumerWidget {
         final int reversedIndex = attempts.length - 1 - index;
         final ClimbAttempt a = attempts[reversedIndex];
         final int displayNumber = reversedIndex + 1; // total climbs up to this attempt
-        return _AttemptTile(a, displayNumber);
+        int? perProblemAttempt;
+        if (a is BoulderingAttempt) {
+          final String keyGrade = a.grade.value;
+          int count = 0;
+          for (int i = 0; i <= reversedIndex; i++) {
+            final ClimbAttempt prev = attempts[i];
+            if (prev is BoulderingAttempt && prev.grade.value == keyGrade) {
+              count++;
+            }
+          }
+          perProblemAttempt = count;
+        }
+        return _AttemptCard(a, displayNumber, perProblemAttempt: perProblemAttempt);
       },
     );
   }
 }
 
-class _AttemptTile extends ConsumerWidget {
-  const _AttemptTile(this.a, this.number);
+class _AttemptCard extends ConsumerStatefulWidget {
+  const _AttemptCard(this.a, this.number, {this.perProblemAttempt});
 
   final ClimbAttempt a;
   final int number;
+  final int? perProblemAttempt;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_AttemptCard> createState() => _AttemptCardState();
+}
+
+class _AttemptCardState extends ConsumerState<_AttemptCard> {
+  late bool _showNotes = widget.a is BoulderingAttempt && ((widget.a as BoulderingAttempt).notes ?? '').isNotEmpty;
+  bool? _sentLocal;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.a is BoulderingAttempt) {
+      _sentLocal = (widget.a as BoulderingAttempt).sent;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _AttemptCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.a is BoulderingAttempt) {
+      _sentLocal = (widget.a as BoulderingAttempt).sent;
+    } else {
+      _sentLocal = null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     late final String title;
-    if (a is BoulderingAttempt) {
-      final BoulderingAttempt b = a as BoulderingAttempt;
-      title = '${b.grade.value} • ${b.sent ? 'Sent' : 'Project'}';
-    } else if (a is TopRopeAttempt) {
-      final TopRopeAttempt t = a as TopRopeAttempt;
+    if (widget.a is BoulderingAttempt) {
+      final BoulderingAttempt b = widget.a as BoulderingAttempt;
+      final bool flashed = _sentLocal ?? b.sent;
+      title = '${b.grade.value} • ${flashed ? 'Flashed' : 'Project'}';
+    } else if (widget.a is TopRopeAttempt) {
+      final TopRopeAttempt t = widget.a as TopRopeAttempt;
       title = '${t.grade.value} • ${t.heightMeters} m • ${t.completed ? 'Completed' : 'Attempt'}';
-    } else if (a is LeadAttempt) {
-      final LeadAttempt l = a as LeadAttempt;
+    } else if (widget.a is LeadAttempt) {
+      final LeadAttempt l = widget.a as LeadAttempt;
       title = '${l.grade.value} • ${l.heightMeters} m • ${l.completed ? 'Completed' : 'Attempt'}';
     } else {
       title = 'Attempt';
@@ -302,19 +344,82 @@ class _AttemptTile extends ConsumerWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
+              if (widget.a is BoulderingAttempt)
+                AdaptiveIconButton(
+                  onPressed: () {
+                    final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
+                    final BoulderingAttempt b = widget.a as BoulderingAttempt;
+                    final bool next = !(_sentLocal ?? b.sent);
+                    setState(() => _sentLocal = next);
+                    vm.updateBoulderAttemptSent(b.id, next);
+                  },
+                  icon: Icon(
+                    defaultTargetPlatform == TargetPlatform.iOS
+                        ? ((_sentLocal ?? (widget.a as BoulderingAttempt).sent) ? CupertinoIcons.bolt_fill : CupertinoIcons.bolt)
+                        : ((_sentLocal ?? (widget.a as BoulderingAttempt).sent) ? Icons.bolt : Icons.bolt_outlined),
+                    color: (_sentLocal ?? (widget.a as BoulderingAttempt).sent) ? Theme.of(context).colorScheme.primary : null,
+                  ),
+                ),
+              if (widget.a is BoulderingAttempt) ...<Widget>[
+                AdaptiveIconButton(
+                  onPressed: () {
+                    final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
+                    final BoulderingAttempt b = widget.a as BoulderingAttempt;
+                    vm.updateBoulderAttemptCompleted(b.id, !(b.isCompleted));
+                  },
+                  icon: Icon(
+                    defaultTargetPlatform == TargetPlatform.iOS
+                        ? (((widget.a as BoulderingAttempt).isCompleted) ? CupertinoIcons.check_mark_circled_solid : CupertinoIcons.check_mark_circled)
+                        : (((widget.a as BoulderingAttempt).isCompleted) ? Icons.check_circle : Icons.check_circle_outline),
+                    color: ((widget.a as BoulderingAttempt).isCompleted) ? Theme.of(context).colorScheme.primary : null,
+                  ),
+                ),
+              ],
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: Text('#$number'),
+                child: Text('#${widget.number}'),
               ),
               const SizedBox(width: AppSpacing.sm),
               Text(title),
+              if (widget.a is BoulderingAttempt) ...<Widget>[
+                const SizedBox(width: AppSpacing.sm),
+                GestureDetector(
+                  onHorizontalDragEnd: (DragEndDetails d) {
+                    final bool inc = d.velocity.pixelsPerSecond.dx > 0;
+                    final BoulderingAttempt b = widget.a as BoulderingAttempt;
+                    final int next = (b.attemptNo + (inc ? 1 : -1)).clamp(1, 9999);
+                    final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
+                    vm.updateBoulderAttemptNumber(b.id, next);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text('Attempt ${(widget.a as BoulderingAttempt).attemptNo}'),
+                  ),
+                ),
+              ],
+              const Spacer(),
+              if (widget.a is BoulderingAttempt)
+                AdaptiveIconButton(
+                  onPressed: () => setState(() => _showNotes = !_showNotes),
+                  icon: Icon(
+                    defaultTargetPlatform == TargetPlatform.iOS
+                        ? (_showNotes ? CupertinoIcons.doc_text : CupertinoIcons.text_alignleft)
+                        : (_showNotes ? Icons.sticky_note_2 : Icons.sticky_note_2_outlined),
+                    color: _showNotes ? Theme.of(context).colorScheme.primary : null,
+                  ),
+                ),
             ],
           ),
-          if (a is BoulderingAttempt) _BoulderAttemptEditor(a as BoulderingAttempt),
+          if (widget.a is BoulderingAttempt)
+            _BoulderAttemptEditor(widget.a as BoulderingAttempt, showNotes: _showNotes),
         ],
       ),
     );
@@ -322,16 +427,16 @@ class _AttemptTile extends ConsumerWidget {
 }
 
 class _BoulderAttemptEditor extends ConsumerStatefulWidget {
-  const _BoulderAttemptEditor(this.attempt);
+  const _BoulderAttemptEditor(this.attempt, {required this.showNotes});
 
   final BoulderingAttempt attempt;
+  final bool showNotes;
 
   @override
   ConsumerState<_BoulderAttemptEditor> createState() => _BoulderAttemptEditorState();
 }
 
 class _BoulderAttemptEditorState extends ConsumerState<_BoulderAttemptEditor> {
-  late bool _sent = widget.attempt.sent;
   late final TextEditingController _notes = TextEditingController(text: widget.attempt.notes ?? '');
 
   @override
@@ -346,26 +451,15 @@ class _BoulderAttemptEditorState extends ConsumerState<_BoulderAttemptEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            AdaptiveSwitch(
-              value: _sent,
-              onChanged: (bool v) {
-                setState(() => _sent = v);
-                vm.updateBoulderAttemptSent(widget.attempt.id, v);
-              },
-            ),
-            const Text('Sent'),
-          ],
-        ),
-        AdaptiveTextField(
-          controller: _notes,
-          labelText: 'Notes (optional)',
-          minLines: 1,
-          maxLines: 3,
-          onChanged: (String v) => vm.updateBoulderAttemptNotes(widget.attempt.id, v.isEmpty ? null : v),
-        ),
+        // Flashed moved to leading icon toggle on card header
+        if (widget.showNotes)
+          AdaptiveTextField(
+            controller: _notes,
+            labelText: 'Notes (optional)',
+            minLines: 1,
+            maxLines: 3,
+            onChanged: (String v) => vm.updateBoulderAttemptNotes(widget.attempt.id, v.isEmpty ? null : v),
+          ),
       ],
     );
   }
