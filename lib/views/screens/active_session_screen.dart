@@ -297,7 +297,7 @@ class _AttemptCard extends ConsumerStatefulWidget {
   ConsumerState<_AttemptCard> createState() => _AttemptCardState();
 }
 
-class _AttemptCardState extends ConsumerState<_AttemptCard> {
+class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAliveClientMixin<_AttemptCard> {
   late bool _showNotes = widget.a is BoulderingAttempt && ((widget.a as BoulderingAttempt).notes ?? '').isNotEmpty;
   bool? _sentLocal;
   double? _attemptDragStartX;
@@ -341,6 +341,7 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     late final String title;
     if (widget.a is BoulderingAttempt) {
       final BoulderingAttempt b = widget.a as BoulderingAttempt;
@@ -574,6 +575,9 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> {
       ),
     );
   }
+
+  @override
+  bool get wantKeepAlive => true;
 }
 
 class _BoulderAttemptEditor extends ConsumerStatefulWidget {
