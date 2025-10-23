@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import 'adaptive_cupertino.dart' as cu;
 import 'adaptive_material.dart' as mt;
 
-bool get _isCupertinoPlatform => defaultTargetPlatform == TargetPlatform.iOS ||
-    defaultTargetPlatform == TargetPlatform.macOS;
+bool get _isCupertinoPlatform => defaultTargetPlatform == TargetPlatform.iOS;
 
 // Global adaptive design tokens
 const double kCardBaseRadiusCupertino = 14;

@@ -130,7 +130,7 @@ class _PastSessionsList extends ConsumerWidget {
             final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
             vm.editPastSession(s.id);
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
+              if (defaultTargetPlatform == TargetPlatform.iOS) {
                 showCupertinoSheet(
                   context: context,
                   builder: (_) => const ActiveSessionScreen(),

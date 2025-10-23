@@ -15,8 +15,7 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    final bool isCupertino = defaultTargetPlatform == TargetPlatform.iOS ||
-        defaultTargetPlatform == TargetPlatform.macOS;
+    final bool isCupertino = defaultTargetPlatform == TargetPlatform.iOS;
     if (isCupertino) {
       return const CupertinoApp(
         title: 'Sacra',
