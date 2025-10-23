@@ -95,6 +95,13 @@ class SessionLogViewModel extends Notifier<SessionLogState> {
     }
   }
 
+  void clearEditingSession() {
+    if (state.editingSession == null) {
+      return;
+    }
+    state = state.copyWith(editingSession: null);
+  }
+
   void addAttempt(ClimbAttempt attempt) {
     if (state.activeSession != null) {
       final Session current = state.activeSession!;

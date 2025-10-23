@@ -81,12 +81,15 @@ class _EmptyPrompt extends StatelessWidget {
 class _ActiveSessionButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final Session? session = ref.watch(sessionLogProvider).activeSession;
+    final SessionLogState st = ref.watch(sessionLogProvider);
+    final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
+    final Session? session = st.activeSession;
     if (session == null) {
       return const SizedBox.shrink();
     }
     return AdaptiveFilledButton.icon(
       onPressed: () {
+        vm.clearEditingSession();
         Navigator.of(context).push(
           MaterialPageRoute<Widget>(
             builder: (_) => const ActiveSessionScreen(),
@@ -133,11 +136,11 @@ class _PastSessionsList extends ConsumerWidget {
               if (defaultTargetPlatform == TargetPlatform.iOS) {
                 showCupertinoSheet(
                   context: context,
-                  builder: (_) => const ActiveSessionScreen(),
+                  builder: (_) => ActiveSessionScreen(session: s),
                 );
               } else {
                 Navigator.of(context).push(
-                  MaterialPageRoute<Widget>(builder: (_) => const ActiveSessionScreen()),
+                  MaterialPageRoute<Widget>(builder: (_) => ActiveSessionScreen(session: s)),
                 );
               }
             });

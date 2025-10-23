@@ -24,22 +24,26 @@ IconData _adaptiveAddIcon() {
 }
 
 class ActiveSessionScreen extends ConsumerWidget {
-  const ActiveSessionScreen({super.key});
+  const ActiveSessionScreen({super.key, this.session});
+
+  final Session? session;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final SessionLogState state = ref.watch(sessionLogProvider);
-    final Session? session = state.activeSession ?? state.editingSession;
+    final Session? effectiveSession = session ?? state.activeSession;
     final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
 
     return AdaptiveScaffold(
       title: Text(
-        session == null ? 'Active Session' : 'Active: ${session.climbType.name}',
+        effectiveSession == null ? 'Active Session' : 'Active: ${effectiveSession.climbType.name}',
         style: AppTextStyles.title,
       ),
-      actions: session == null
-          ? null
-          : <Widget>[
+      actions: (session != null)
+          ? null // viewing/editing a past session; no end button
+          : (effectiveSession == null
+              ? null
+              : <Widget>[
         AdaptiveIconButton(
           onPressed: () {
             vm.endSession();
@@ -56,7 +60,8 @@ class ActiveSessionScreen extends ConsumerWidget {
           tooltip: 'End Session',
           icon: Icon(_adaptiveStopIcon()),
         ),
-            ],
+              ])
+          ,
       body: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(
@@ -64,9 +69,9 @@ class ActiveSessionScreen extends ConsumerWidget {
           ),
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
-            child: session == null
+            child: effectiveSession == null
                 ? _StartOptions(onStart: vm.startSession)
-                : _ActiveBody(session: session),
+                : _ActiveBody(session: effectiveSession),
           ),
         ),
       ),
