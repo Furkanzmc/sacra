@@ -45,7 +45,9 @@ class ActiveSessionScreen extends ConsumerWidget {
               ? null
               : <Widget>[
         AdaptiveIconButton(
-          onPressed: () {
+          onPressed: () async {
+            final bool confirmed = await _confirmEndSession(context);
+            if (!confirmed) return;
             vm.endSession();
             // On iOS, if presented modally (fullscreenDialog), pop the sheet.
             if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
@@ -77,6 +79,43 @@ class ActiveSessionScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+Future<bool> _confirmEndSession(BuildContext context) async {
+  if (defaultTargetPlatform == TargetPlatform.iOS) {
+    return await showCupertinoDialog<bool>(
+          context: context,
+          builder: (BuildContext ctx) => CupertinoAlertDialog(
+            title: const Text('End session?'),
+            content: const Text('This will stop tracking the current session.'),
+            actions: <Widget>[
+              CupertinoDialogAction(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                isDefaultAction: true,
+                child: const Text('Cancel'),
+              ),
+              CupertinoDialogAction(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                isDestructiveAction: true,
+                child: const Text('End'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+  return await showDialog<bool>(
+        context: context,
+        builder: (BuildContext ctx) => AlertDialog(
+          title: const Text('End session?'),
+          content: const Text('This will stop tracking the current session.'),
+          actions: <Widget>[
+            TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('End')),
+          ],
+        ),
+      ) ??
+      false;
 }
 
 final StateProvider<bool> sessionNotesVisibleProvider = StateProvider<bool>((StateProviderRef<bool> ref) => false);
