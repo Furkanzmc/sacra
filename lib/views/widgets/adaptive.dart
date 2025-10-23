@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'adaptive_cupertino.dart' as cu;
+import 'adaptive_material.dart' as mt;
 
 bool get _isCupertinoPlatform => defaultTargetPlatform == TargetPlatform.iOS ||
     defaultTargetPlatform == TargetPlatform.macOS;
@@ -25,20 +27,9 @@ class AdaptiveScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (_isCupertinoPlatform) {
-      return CupertinoPageScaffold(
-        navigationBar: CupertinoNavigationBar(
-          middle: title,
-          trailing: actions == null
-              ? null
-              : Row(mainAxisSize: MainAxisSize.min, children: actions!),
-        ),
-        child: SafeArea(child: body),
-      );
+      return cu.CupertinoAdaptiveScaffold(title: title, body: body, actions: actions);
     }
-    return Scaffold(
-      appBar: AppBar(title: title, actions: actions),
-      body: body,
-    );
+    return mt.MaterialAdaptiveScaffold(title: title, body: body, actions: actions);
   }
 }
 
@@ -92,36 +83,9 @@ class AdaptiveCard extends StatelessWidget {
     final double base = _isCupertinoPlatform ? kCardBaseRadiusCupertino : kCardBaseRadiusMaterial;
     final double r = (borderRadius ?? base) * kCardCornerRadiusScale;
     if (_isCupertinoPlatform) {
-      final Widget content = Padding(
-        padding: padding ?? EdgeInsets.zero,
-        child: child,
-      );
-      final Widget card = DecoratedBox(
-        decoration: BoxDecoration(
-          color: CupertinoColors.systemBackground.resolveFrom(context),
-          borderRadius: BorderRadius.circular(r),
-          border: Border.all(color: CupertinoColors.separator.resolveFrom(context)),
-        ),
-        child: content,
-      );
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(r),
-        child: onTap == null ? card : GestureDetector(onTap: onTap, child: card),
-      );
+      return cu.CupertinoAdaptiveCard(child: child, radius: r, padding: padding, onTap: onTap);
     }
-    final Widget content = Padding(
-      padding: padding ?? EdgeInsets.zero,
-      child: child,
-    );
-    final Widget materialChild = onTap == null
-        ? content
-        : InkWell(onTap: onTap, child: content, borderRadius: BorderRadius.circular(r));
-    return Card(
-      elevation: 1,
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(r)),
-      child: materialChild,
-    );
+    return mt.MaterialAdaptiveCard(child: child, radius: r, padding: padding, onTap: onTap);
   }
 }
 
@@ -135,13 +99,9 @@ class AdaptiveIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (_isCupertinoPlatform) {
-      return CupertinoButton(
-        padding: EdgeInsets.zero,
-        onPressed: onPressed,
-        child: icon,
-      );
+      return cu.CupertinoAdaptiveIconButton(icon: icon, onPressed: onPressed);
     }
-    return IconButton(onPressed: onPressed, tooltip: tooltip, icon: icon);
+    return mt.MaterialAdaptiveIconButton(icon: icon, onPressed: onPressed, tooltip: tooltip);
   }
 }
 
@@ -160,19 +120,9 @@ class AdaptiveFilledButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (_isCupertinoPlatform) {
-      return CupertinoButton.filled(
-        onPressed: onPressed,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            icon,
-            const SizedBox(width: 8),
-            label,
-          ],
-        ),
-      );
+      return cu.CupertinoAdaptiveFilledButtonIcon(onPressed: onPressed, icon: icon, label: label);
     }
-    return FilledButton.icon(onPressed: onPressed, icon: icon, label: label);
+    return mt.MaterialAdaptiveFilledButtonIcon(onPressed: onPressed, icon: icon, label: label);
   }
 }
 
@@ -185,9 +135,9 @@ class AdaptiveSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (_isCupertinoPlatform) {
-      return CupertinoSwitch(value: value, onChanged: onChanged);
+      return cu.CupertinoAdaptiveSwitch(value: value, onChanged: onChanged);
     }
-    return Checkbox(value: value, onChanged: (bool? v) => onChanged(v ?? false));
+    return mt.MaterialAdaptiveSwitch(value: value, onChanged: onChanged);
   }
 }
 
@@ -212,7 +162,7 @@ class AdaptiveTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (_isCupertinoPlatform) {
-      return CupertinoTextField(
+      return cu.CupertinoAdaptiveTextField(
         controller: controller,
         placeholder: labelText,
         keyboardType: keyboardType,
@@ -221,9 +171,9 @@ class AdaptiveTextField extends StatelessWidget {
         onChanged: onChanged,
       );
     }
-    return TextField(
+    return mt.MaterialAdaptiveTextField(
       controller: controller,
-      decoration: InputDecoration(labelText: labelText),
+      labelText: labelText,
       keyboardType: keyboardType,
       minLines: minLines,
       maxLines: maxLines,
