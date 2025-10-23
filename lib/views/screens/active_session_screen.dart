@@ -300,6 +300,11 @@ class _AttemptCard extends ConsumerStatefulWidget {
 class _AttemptCardState extends ConsumerState<_AttemptCard> {
   late bool _showNotes = widget.a is BoulderingAttempt && ((widget.a as BoulderingAttempt).notes ?? '').isNotEmpty;
   bool? _sentLocal;
+  double? _attemptDragStartX;
+  double _attemptDragProgress = 0; // 0..1
+  int _attemptDragDir = 0; // -1 left, 1 right, 0 none
+  double _attemptPillWidth = 120;
+  double _hintOpacity = 0.0;
 
   @override
   void initState() {
@@ -307,7 +312,22 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> {
     if (widget.a is BoulderingAttempt) {
       _sentLocal = (widget.a as BoulderingAttempt).sent;
     }
+    // One-shot hint pulse on Material platforms
+    if (defaultTargetPlatform != TargetPlatform.iOS) {
+      Future.microtask(() async {
+        if (!mounted) return;
+        setState(() => _hintOpacity = 0.0);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        if (!mounted) return;
+        setState(() => _hintOpacity = 1.0);
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        if (!mounted) return;
+        setState(() => _hintOpacity = 0.6);
+      });
+    }
   }
+
+  // second initState removed (duplicate)
 
   @override
   void didUpdateWidget(covariant _AttemptCard oldWidget) {
@@ -336,15 +356,28 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> {
       title = 'Attempt';
     }
 
+    final bool hasNotes = widget.a is BoulderingAttempt && (((widget.a as BoulderingAttempt).notes) ?? '').isNotEmpty;
+
     return AdaptiveCard(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              if (widget.a is BoulderingAttempt)
+          if (widget.a is BoulderingAttempt)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                // Problem number badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text('#${widget.number}'),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                // Flashed
                 AdaptiveIconButton(
                   onPressed: () {
                     final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
@@ -360,7 +393,7 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> {
                     color: (_sentLocal ?? (widget.a as BoulderingAttempt).sent) ? Theme.of(context).colorScheme.primary : null,
                   ),
                 ),
-              if (widget.a is BoulderingAttempt) ...<Widget>[
+                // Completed
                 AdaptiveIconButton(
                   onPressed: () {
                     final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
@@ -375,46 +408,163 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> {
                   ),
                 ),
               ],
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text('#${widget.number}'),
-              ),
-              const SizedBox(width: AppSpacing.sm),
+            ),
+          if (widget.a is BoulderingAttempt) const SizedBox(height: AppSpacing.xs),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              // Title first on second row
               Text(title),
               if (widget.a is BoulderingAttempt) ...<Widget>[
                 const SizedBox(width: AppSpacing.sm),
                 GestureDetector(
-                  onHorizontalDragEnd: (DragEndDetails d) {
-                    final bool inc = d.velocity.pixelsPerSecond.dx > 0;
+                  onTapDown: (TapDownDetails d) {
+                    if (defaultTargetPlatform == TargetPlatform.iOS) return;
                     final BoulderingAttempt b = widget.a as BoulderingAttempt;
-                    final int next = (b.attemptNo + (inc ? 1 : -1)).clamp(1, 9999);
                     final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
+                    final double localX = d.localPosition.dx;
+                    final bool inc = localX > (_attemptPillWidth / 2);
+                    final int next = (b.attemptNo + (inc ? 1 : -1)).clamp(1, 9999);
                     vm.updateBoulderAttemptNumber(b.id, next);
+                    // Play fill animation for tap
+                    setState(() {
+                      _attemptDragDir = inc ? 1 : -1;
+                      _attemptDragProgress = 1.0;
+                    });
+                    Future<void>.delayed(const Duration(milliseconds: 150), () {
+                      if (!mounted) return;
+                      setState(() {
+                        _attemptDragProgress = 0.0;
+                        _attemptDragDir = 0;
+                      });
+                    });
                   },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text('Attempt ${(widget.a as BoulderingAttempt).attemptNo}'),
+                  onHorizontalDragStart: (DragStartDetails d) {
+                    if (defaultTargetPlatform == TargetPlatform.iOS) return;
+                    _attemptDragStartX = d.globalPosition.dx;
+                    setState(() {
+                      _attemptDragProgress = 0;
+                      _attemptDragDir = 0;
+                    });
+                  },
+                  onHorizontalDragUpdate: (DragUpdateDetails d) {
+                    if (defaultTargetPlatform == TargetPlatform.iOS || _attemptDragStartX == null) return;
+                    final double dx = d.globalPosition.dx - _attemptDragStartX!;
+                    const double threshold = 80; // px for full fill
+                    final int dir = dx == 0 ? 0 : (dx > 0 ? 1 : -1);
+                    final double prog = (dx.abs() / threshold).clamp(0.0, 1.0);
+                    setState(() {
+                      _attemptDragDir = dir;
+                      _attemptDragProgress = prog;
+                    });
+                  },
+                  onHorizontalDragEnd: (DragEndDetails d) {
+                    final BoulderingAttempt b = widget.a as BoulderingAttempt;
+                    final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
+                    bool apply = _attemptDragProgress > 0.5 || d.velocity.pixelsPerSecond.dx.abs() > 400;
+                    if (apply) {
+                      final bool inc = _attemptDragDir >= 0 && d.velocity.pixelsPerSecond.dx >= 0;
+                      final int next = (b.attemptNo + (inc ? 1 : -1)).clamp(1, 9999);
+                      vm.updateBoulderAttemptNumber(b.id, next);
+                    }
+                    setState(() {
+                      _attemptDragStartX = null;
+                      _attemptDragProgress = 0;
+                      _attemptDragDir = 0;
+                    });
+                  },
+                  child: LayoutBuilder(
+                    builder: (BuildContext context, BoxConstraints constraints) {
+                      final double width = constraints.maxWidth.isFinite ? constraints.maxWidth : 120;
+                      _attemptPillWidth = width;
+                      final Color overlay = _attemptDragDir == 0
+                          ? Colors.transparent
+                          : (_attemptDragDir > 0
+                              ? Colors.green.withValues(alpha: 0.25)
+                              : Colors.red.withValues(alpha: 0.25));
+                      final double fillWidth = width * _attemptDragProgress;
+                      final bool showHint = defaultTargetPlatform != TargetPlatform.iOS;
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: <Widget>[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  if (showHint)
+                                    AnimatedOpacity(
+                                      duration: const Duration(milliseconds: 300),
+                                      opacity: _hintOpacity,
+                                      child: Icon(Icons.chevron_left, size: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.36)),
+                                    ),
+                                  Text('Attempt ${(widget.a as BoulderingAttempt).attemptNo}'),
+                                  if (showHint)
+                                    AnimatedOpacity(
+                                      duration: const Duration(milliseconds: 300),
+                                      opacity: _hintOpacity,
+                                      child: Icon(Icons.chevron_right, size: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.36)),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            if (_attemptDragDir != 0)
+                              Positioned(
+                                left: _attemptDragDir > 0 ? 0 : null,
+                                right: _attemptDragDir < 0 ? 0 : null,
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 80),
+                                  curve: Curves.easeOut,
+                                  width: fillWidth,
+                                  height: 24,
+                                  color: overlay,
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
               const Spacer(),
               if (widget.a is BoulderingAttempt)
-                AdaptiveIconButton(
-                  onPressed: () => setState(() => _showNotes = !_showNotes),
-                  icon: Icon(
-                    defaultTargetPlatform == TargetPlatform.iOS
-                        ? (_showNotes ? CupertinoIcons.doc_text : CupertinoIcons.text_alignleft)
-                        : (_showNotes ? Icons.sticky_note_2 : Icons.sticky_note_2_outlined),
-                    color: _showNotes ? Theme.of(context).colorScheme.primary : null,
-                  ),
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: <Widget>[
+                    AdaptiveIconButton(
+                      onPressed: () => setState(() => _showNotes = !_showNotes),
+                      icon: Icon(
+                        defaultTargetPlatform == TargetPlatform.iOS
+                            ? (_showNotes ? CupertinoIcons.doc_text : CupertinoIcons.text_alignleft)
+                            : (_showNotes ? Icons.sticky_note_2 : Icons.sticky_note_2_outlined),
+                        color: _showNotes ? Theme.of(context).colorScheme.primary : null,
+                      ),
+                    ),
+                    if (hasNotes && !_showNotes)
+                      Positioned(
+                        right: -1,
+                        top: -1,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primary,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.surface,
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
             ],
           ),
