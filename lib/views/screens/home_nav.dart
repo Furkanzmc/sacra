@@ -1,24 +1,23 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'active_session_screen.dart';
-import 'session_log_screen.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';
 import '../widgets/navigation_scope.dart';
+import '../../viewmodels/session_log_view_model.dart';
+import 'active_session_screen.dart';
 
-class HomeNav extends StatefulWidget {
+class HomeNav extends ConsumerStatefulWidget {
   const HomeNav({super.key});
 
   @override
-  State<HomeNav> createState() => _HomeNavState();
+  ConsumerState<HomeNav> createState() => _HomeNavState();
 }
 
-class _HomeNavState extends State<HomeNav> {
+class _HomeNavState extends ConsumerState<HomeNav> {
   int _index = 0;
-  final GlobalKey<NavigatorState> _sessionsKey = GlobalKey<NavigatorState>();
-  final GlobalKey<NavigatorState> _activeKey = GlobalKey<NavigatorState>();
   final CupertinoTabController _cupertinoController = CupertinoTabController(initialIndex: 0);
   final GlobalKey<NavigatorState> _homeKey = GlobalKey<NavigatorState>();
   final GlobalKey<NavigatorState> _profileKey = GlobalKey<NavigatorState>();
@@ -29,7 +28,8 @@ class _HomeNavState extends State<HomeNav> {
         defaultTargetPlatform == TargetPlatform.macOS;
 
     if (isCupertino) {
-      return NavigationScope(
+      final bool hasActive = ref.watch(sessionLogProvider).activeSession != null;
+      final Widget tabs = NavigationScope(
         setTab: (int i) {
           _cupertinoController.index = i;
           setState(() => _index = i);
@@ -37,79 +37,107 @@ class _HomeNavState extends State<HomeNav> {
         child: CupertinoTabScaffold(
           controller: _cupertinoController,
           tabBar: CupertinoTabBar(
-            items: const <BottomNavigationBarItem>[
-              BottomNavigationBarItem(icon: Icon(CupertinoIcons.house_fill), label: 'Home'),
-              BottomNavigationBarItem(icon: Icon(CupertinoIcons.list_bullet), label: 'Sessions'),
-              BottomNavigationBarItem(icon: Icon(CupertinoIcons.play_fill), label: 'Active'),
-              BottomNavigationBarItem(icon: Icon(CupertinoIcons.person_crop_circle), label: 'Profile'),
+            onTap: (int i) async {
+              if (i == 1) {
+                await _handleStartSession(context);
+                _cupertinoController.index = _index; // keep current tab
+              } else {
+                setState(() => _index = i);
+              }
+            },
+            items: <BottomNavigationBarItem>[
+              const BottomNavigationBarItem(icon: Icon(CupertinoIcons.house_fill), label: 'Home'),
+              BottomNavigationBarItem(
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: <Widget>[
+                    const Icon(CupertinoIcons.play_fill),
+                    if (hasActive)
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          width: 7,
+                          height: 7,
+                          decoration: const BoxDecoration(color: CupertinoColors.activeBlue, shape: BoxShape.circle),
+                        ),
+                      ),
+                  ],
+                ),
+                label: hasActive ? 'Continue' : 'Start',
+              ),
+              const BottomNavigationBarItem(icon: Icon(CupertinoIcons.person_crop_circle), label: 'Profile'),
             ],
           ),
           tabBuilder: (BuildContext context, int i) {
-            switch (i) {
-              case 0:
-                return CupertinoTabView(
-                  navigatorKey: _homeKey,
-                  routes: <String, WidgetBuilder>{
-                    '/': (_) => const HomeScreen(),
-                  },
-                );
-              case 1:
-                return CupertinoTabView(
-                  navigatorKey: _sessionsKey,
-                  routes: <String, WidgetBuilder>{
-                    '/': (_) => const SessionLogScreen(),
-                  },
-                );
-              case 2:
-                return CupertinoTabView(
-                  navigatorKey: _activeKey,
-                  routes: <String, WidgetBuilder>{
-                    '/': (_) => const ActiveSessionScreen(),
-                  },
-                );
-              case 3:
-              default:
-                return CupertinoTabView(
-                  navigatorKey: _profileKey,
-                  routes: <String, WidgetBuilder>{
-                    '/': (_) => const ProfileScreen(),
-                  },
-                );
+            if (i == 0) {
+              return CupertinoTabView(
+                navigatorKey: _homeKey,
+                routes: <String, WidgetBuilder>{
+                  '/': (_) => const HomeScreen(),
+                },
+              );
             }
+            if (i == 2) {
+              return CupertinoTabView(
+                navigatorKey: _profileKey,
+                routes: <String, WidgetBuilder>{
+                  '/': (_) => const ProfileScreen(),
+                },
+              );
+            }
+            // Start tab placeholder
+            return const SizedBox.shrink();
           },
         ),
       );
+      return tabs;
     }
 
-    return NavigationScope(
+    final bool hasActive = ref.watch(sessionLogProvider).activeSession != null;
+    final Widget shell = NavigationScope(
       setTab: (int i) => setState(() => _index = i),
       child: Scaffold(
-        body: () {
-          switch (_index) {
-            case 0:
-              return const HomeScreen();
-            case 1:
-              return const SessionLogScreen();
-            case 2:
-              return const ActiveSessionScreen();
-            case 3:
-            default:
-              return const ProfileScreen();
-          }
-        }(),
+        body: _index == 0 ? const HomeScreen() : const ProfileScreen(),
         bottomNavigationBar: NavigationBar(
           selectedIndex: _index,
-          destinations: const <NavigationDestination>[
-            NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
-            NavigationDestination(icon: Icon(Icons.list), label: 'Sessions'),
-            NavigationDestination(icon: Icon(Icons.play_arrow), label: 'Active'),
-            NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
+          destinations: <NavigationDestination>[
+            const NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
+            NavigationDestination(
+              icon: Badge(
+                isLabelVisible: hasActive,
+                smallSize: 8,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                child: const Icon(Icons.play_arrow),
+              ),
+              label: hasActive ? 'Continue' : 'Start',
+            ),
+            const NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
           ],
-          onDestinationSelected: (int i) => setState(() => _index = i),
+          onDestinationSelected: (int i) async {
+            if (i == 1) {
+              await _handleStartSession(context);
+              return;
+            }
+            setState(() => _index = i);
+          },
         ),
       ),
     );
+    return shell;
+  }
+
+  Future<void> _handleStartSession(BuildContext context) async {
+    // Always navigate to the ActiveSessionScreen. That screen shows
+    // in-page activity buttons when there is no active session.
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      await Navigator.of(context).push(CupertinoPageRoute<Widget>(builder: (_) => const ActiveSessionScreen()));
+    } else {
+      await Navigator.of(context).push(MaterialPageRoute<Widget>(builder: (_) => const ActiveSessionScreen()));
+    }
   }
 }
+
+// Previously: _ActiveSessionBanner (removed per latest design)
 
 
