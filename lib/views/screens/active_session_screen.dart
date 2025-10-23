@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/activity.dart';
 import '../../models/session.dart';
@@ -11,6 +10,7 @@ import '../widgets/responsive.dart';
 import '../widgets/v_grade_scrubber.dart';
 import '../widgets/adaptive.dart';
 import '../widgets/navigation_scope.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 IconData _adaptiveStopIcon() {
   return (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS)
       ? CupertinoIcons.stop_fill
@@ -79,6 +79,8 @@ class ActiveSessionScreen extends ConsumerWidget {
   }
 }
 
+final StateProvider<bool> sessionNotesVisibleProvider = StateProvider<bool>((StateProviderRef<bool> ref) => false);
+
 class _ActiveBody extends ConsumerWidget {
   const _ActiveBody({required this.session});
 
@@ -94,7 +96,9 @@ class _ActiveBody extends ConsumerWidget {
           adaptiveFormatTime(context, session.startTime),
           style: AppTextStyles.body,
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.sm),
+        const _SessionNotesField(),
+        const SizedBox(height: AppSpacing.sm),
         Expanded(
           child: _AttemptsList(attempts: session.attempts),
         ),
@@ -107,6 +111,98 @@ class _ActiveBody extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SessionNotesButton extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final Session? s = ref.watch(sessionLogProvider).activeSession ?? ref.watch(sessionLogProvider).editingSession;
+    final bool has = (s?.notes ?? '').isNotEmpty;
+    final bool show = ref.watch(sessionNotesVisibleProvider);
+    return Stack(
+      clipBehavior: Clip.none,
+      children: <Widget>[
+        AdaptiveIconButton(
+          onPressed: () => ref.read(sessionNotesVisibleProvider.notifier).state = !show,
+          icon: Icon(
+            defaultTargetPlatform == TargetPlatform.iOS
+                ? (show ? CupertinoIcons.doc_text : CupertinoIcons.text_alignleft)
+                : (show ? Icons.sticky_note_2 : Icons.sticky_note_2_outlined),
+            color: show ? Theme.of(context).colorScheme.primary : null,
+          ),
+        ),
+        if (has && !show)
+          Positioned(
+            right: -1,
+            top: -1,
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+                shape: BoxShape.circle,
+                border: Border.all(color: Theme.of(context).colorScheme.surface, width: 1),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _SessionNotesField extends ConsumerStatefulWidget {
+  const _SessionNotesField();
+
+  @override
+  ConsumerState<_SessionNotesField> createState() => _SessionNotesFieldState();
+}
+
+class _SessionNotesFieldState extends ConsumerState<_SessionNotesField> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    final Session? s = ref.read(sessionLogProvider).activeSession ?? ref.read(sessionLogProvider).editingSession;
+    _controller = TextEditingController(text: s?.notes ?? '');
+  }
+
+  @override
+  void didUpdateWidget(covariant _SessionNotesField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final Session? s = ref.read(sessionLogProvider).activeSession ?? ref.read(sessionLogProvider).editingSession;
+    final String next = s?.notes ?? '';
+    if (_controller.text != next) {
+      // Preserve caret at end when external value changes
+      _controller.value = TextEditingValue(text: next, selection: TextSelection.collapsed(offset: next.length));
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool show = ref.watch(sessionNotesVisibleProvider);
+    return AnimatedCrossFade(
+      crossFadeState: show ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+      duration: const Duration(milliseconds: 200),
+      firstChild: Padding(
+        padding: const EdgeInsets.only(top: 0),
+        child: AdaptiveTextField(
+          controller: _controller,
+          labelText: 'Session notes (optional)',
+          minLines: 1,
+          maxLines: 3,
+          onChanged: (String v) => ref.read(sessionLogProvider.notifier).updateSessionNotes(v.isEmpty ? null : v),
+        ),
+      ),
+      secondChild: const SizedBox.shrink(),
     );
   }
 }
@@ -155,6 +251,7 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
                 _gradeCtrl.text = g.value;
                 _onAdd();
               },
+              trailing: _SessionNotesButton(),
             )
           else
             Wrap(
@@ -609,7 +706,7 @@ class _BoulderAttemptEditorState extends ConsumerState<_BoulderAttemptEditor> {
         if (widget.showNotes)
           AdaptiveTextField(
             controller: _notes,
-            labelText: 'Notes (optional)',
+            labelText: 'Notes',
             minLines: 1,
             maxLines: 3,
             onChanged: (String v) => vm.updateBoulderAttemptNotes(widget.attempt.id, v.isEmpty ? null : v),

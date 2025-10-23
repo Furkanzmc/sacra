@@ -102,6 +102,7 @@ class Session {
     required this.attempts,
     this.gymName,
     this.endTime,
+    this.notes,
   });
 
   final String id;
@@ -110,6 +111,7 @@ class Session {
   final ClimbType climbType;
   final String? gymName;
   final List<ClimbAttempt> attempts;
+  final String? notes;
 
   bool get isActive => endTime == null;
 
@@ -119,6 +121,7 @@ class Session {
     ClimbType? climbType,
     String? gymName,
     List<ClimbAttempt>? attempts,
+    String? notes,
   }) {
     return Session(
       id: id,
@@ -127,6 +130,7 @@ class Session {
       climbType: climbType ?? this.climbType,
       gymName: gymName ?? this.gymName,
       attempts: attempts ?? this.attempts,
+      notes: notes ?? this.notes,
     );
   }
 }

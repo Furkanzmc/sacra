@@ -10,10 +10,12 @@ class VGradePopupScrubber extends StatefulWidget {
     super.key,
     required this.onPicked,
     this.grades,
+    this.trailing,
   });
 
   final void Function(Grade grade) onPicked;
   final List<String>? grades;
+  final Widget? trailing;
 
   @override
   State<VGradePopupScrubber> createState() => _VGradePopupScrubberState();
@@ -34,28 +36,38 @@ class _VGradePopupScrubberState extends State<VGradePopupScrubber> {
     return Builder(
       builder: (BuildContext context) {
         final List<String> quick = <String>['V1', 'V2', 'V3', 'V4'];
-        return Wrap(
-          spacing: 8,
-          runSpacing: 8,
+        return Row(
           children: <Widget>[
-            ...quick.map((String g) => _Segment(
-              label: g,
-              onPressed: () => _onQuickPick(g),
-            )),
-            GestureDetector(
-              onTapDown: (TapDownDetails d) {
-                _showOverlay(context, d.globalPosition);
-                _updateFromGlobal(d.globalPosition);
-              },
-              onPanStart: (DragStartDetails d) => _updateFromGlobal(d.globalPosition),
-              onPanUpdate: (DragUpdateDetails d) => _updateFromGlobal(d.globalPosition),
-              onTapUp: (_) => _commitPick(),
-              onPanEnd: (_) => _commitPick(),
-              child: _Segment(
-                label: 'More',
-                onPressed: () {},
+            Expanded(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: <Widget>[
+                  ...quick.map((String g) => _Segment(
+                        label: g,
+                        onPressed: () => _onQuickPick(g),
+                      )),
+                  GestureDetector(
+                    onTapDown: (TapDownDetails d) {
+                      _showOverlay(context, d.globalPosition);
+                      _updateFromGlobal(d.globalPosition);
+                    },
+                    onPanStart: (DragStartDetails d) => _updateFromGlobal(d.globalPosition),
+                    onPanUpdate: (DragUpdateDetails d) => _updateFromGlobal(d.globalPosition),
+                    onTapUp: (_) => _commitPick(),
+                    onPanEnd: (_) => _commitPick(),
+                    child: _Segment(
+                      label: 'More',
+                      onPressed: () {},
+                    ),
+                  ),
+                ],
               ),
             ),
+            if (widget.trailing != null) ...<Widget>[
+              const SizedBox(width: 8),
+              widget.trailing!,
+            ],
           ],
         );
       },
