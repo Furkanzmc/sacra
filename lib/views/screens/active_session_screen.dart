@@ -13,12 +13,19 @@ import '../widgets/adaptive.dart';
 import '../widgets/navigation_scope.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class _MountainHeightView extends StatelessWidget {
+class _MountainHeightView extends StatefulWidget {
   const _MountainHeightView({required this.heightMeters, required this.maxHeightMeters, this.onChanged});
 
   final double heightMeters;
   final double maxHeightMeters;
   final void Function(double v)? onChanged;
+
+  @override
+  State<_MountainHeightView> createState() => _MountainHeightViewState();
+}
+
+class _MountainHeightViewState extends State<_MountainHeightView> {
+  bool _dragging = false;
 
   @override
   Widget build(BuildContext context) {
@@ -39,29 +46,32 @@ class _MountainHeightView extends StatelessWidget {
               final double h = constraints.maxHeight;
               const double apexFraction = 0.2; // keep in sync with painter apex
               final double apexY = h * apexFraction;
-              final double clamped = (heightMeters / (maxHeightMeters == 0 ? 1 : maxHeightMeters)).clamp(0.0, 1.0);
+              final double clamped = (widget.heightMeters / (widget.maxHeightMeters == 0 ? 1 : widget.maxHeightMeters)).clamp(0.0, 1.0);
               final double yUnclamped = h - (h * clamped);
               final double y = yUnclamped < apexY ? apexY : yUnclamped;
               return GestureDetector(
                 behavior: HitTestBehavior.translucent,
+                onVerticalDragStart: (DragStartDetails d) {
+                  if (widget.onChanged == null) return;
+                  final RenderBox box = context.findRenderObject() as RenderBox;
+                  final Offset local = box.globalToLocal(d.globalPosition);
+                  final double cx = constraints.maxWidth / 2;
+                  final double cy = y;
+                  final double dx = (local.dx - cx).abs();
+                  final double dy = (local.dy - cy).abs();
+                  // Accept drag only if the touch starts near the circle (24x24 hitbox)
+                  setState(() => _dragging = dx <= 12 && dy <= 12);
+                },
                 onVerticalDragUpdate: (DragUpdateDetails d) {
-                  if (onChanged == null) return;
+                  if (!_dragging || widget.onChanged == null) return;
                   final RenderBox box = context.findRenderObject() as RenderBox;
                   final Offset local = box.globalToLocal(d.globalPosition);
                   final double pos = (1 - (local.dy / h)).clamp(0.0, 1.0);
                   final double cap = 1 - apexFraction; // max usable portion
                   final double ratio = pos >= cap ? 1.0 : (pos / cap);
-                  onChanged!(ratio * maxHeightMeters);
+                  widget.onChanged!(ratio * widget.maxHeightMeters);
                 },
-                onTapDown: (TapDownDetails d) {
-                  if (onChanged == null) return;
-                  final RenderBox box = context.findRenderObject() as RenderBox;
-                  final Offset local = box.globalToLocal(d.globalPosition);
-                  final double pos = (1 - (local.dy / h)).clamp(0.0, 1.0);
-                  final double cap = 1 - apexFraction;
-                  final double ratio = pos >= cap ? 1.0 : (pos / cap);
-                  onChanged!(ratio * maxHeightMeters);
-                },
+                onVerticalDragEnd: (_) => setState(() => _dragging = false),
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: <Widget>[
@@ -75,7 +85,7 @@ class _MountainHeightView extends StatelessWidget {
                     Positioned(
                       top: y - 12,
                       left: () {
-                        final String label = '${heightMeters.toStringAsFixed(1)} m';
+                        final String label = '${widget.heightMeters.toStringAsFixed(1)} m';
                         final TextStyle style = Theme.of(context).textTheme.bodyMedium ?? const TextStyle(fontSize: 14);
                         final TextPainter tp = TextPainter(
                           text: TextSpan(text: label, style: style),
@@ -99,7 +109,7 @@ class _MountainHeightView extends StatelessWidget {
                               borderRadius: BorderRadius.circular(999),
                               border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
                             ),
-                            child: Text('${heightMeters.toStringAsFixed(1)} m'),
+                            child: Text('${widget.heightMeters.toStringAsFixed(1)} m'),
                           ),
                           const SizedBox(width: 8),
                           Container(
@@ -584,6 +594,7 @@ class _AttemptCard extends ConsumerStatefulWidget {
 
 class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAliveClientMixin<_AttemptCard> {
   late bool _showNotes = ((widget.a.notes) ?? '').isNotEmpty;
+  bool _showHeight = false;
   bool? _sentLocal;
   double? _attemptDragStartX;
   double _attemptDragProgress = 0; // 0..1
@@ -627,6 +638,7 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final bool showHeight = _showHeight;
     late final String title;
     if (widget.a is BoulderingAttempt) {
       final BoulderingAttempt b = widget.a as BoulderingAttempt;
@@ -880,6 +892,8 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
                 ),
               ],
               const Spacer(),
+              if (widget.a is TopRopeAttempt)
+                _HeightToggleButton(attempt: widget.a as TopRopeAttempt, visible: showHeight, onToggle: () => setState(() => _showHeight = !_showHeight)),
               if (widget.a is BoulderingAttempt || widget.a is TopRopeAttempt)
                 Stack(
                   clipBehavior: Clip.none,
@@ -914,7 +928,7 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
                 ),
             ],
           ),
-          if (widget.a is TopRopeAttempt) ...<Widget>[
+          if (widget.a is TopRopeAttempt && showHeight) ...<Widget>[
             const SizedBox(height: AppSpacing.sm),
             _TopRopeControls(widget.a as TopRopeAttempt),
           ],
@@ -1027,6 +1041,48 @@ class _TopRopeControlsState extends ConsumerState<_TopRopeControls> {
         final double rounded = double.parse(v.toStringAsFixed(1));
         ref.read(sessionLogProvider.notifier).updateTopRopeAttemptHeight(widget.attempt.id, rounded);
       },
+    );
+  }
+}
+
+class _HeightToggleButton extends StatelessWidget {
+  const _HeightToggleButton({required this.attempt, required this.visible, required this.onToggle});
+
+  final TopRopeAttempt attempt;
+  final bool visible;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool hasHeight = attempt.heightMeters > 0;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: <Widget>[
+        AdaptiveIconButton(
+          onPressed: onToggle,
+          icon: Icon(
+            defaultTargetPlatform == TargetPlatform.iOS
+                ? (visible ? CupertinoIcons.rectangle_dock : CupertinoIcons.rectangle)
+                : (visible ? Icons.stacked_bar_chart : Icons.stacked_bar_chart_outlined),
+            color: visible ? Theme.of(context).colorScheme.primary : null,
+          ),
+          tooltip: 'Toggle height',
+        ),
+        if (hasHeight && !visible)
+          Positioned(
+            right: -1,
+            top: -1,
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+                shape: BoxShape.circle,
+                border: Border.all(color: Theme.of(context).colorScheme.surface, width: 1),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
