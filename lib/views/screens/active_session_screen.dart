@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +12,144 @@ import '../widgets/v_grade_scrubber.dart';
 import '../widgets/adaptive.dart';
 import '../widgets/navigation_scope.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+class _MountainHeightView extends StatelessWidget {
+  const _MountainHeightView({required this.heightMeters, required this.maxHeightMeters, this.onChanged});
+
+  final double heightMeters;
+  final double maxHeightMeters;
+  final void Function(double v)? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      height: 96,
+      child: Stack(
+        alignment: Alignment.center,
+        children: <Widget>[
+          CustomPaint(
+            size: const Size(double.infinity, double.infinity),
+            painter: _MountainPainter(color: scheme.surfaceContainerHighest.withValues(alpha: 1.0), lineColor: scheme.outlineVariant),
+            child: const SizedBox.expand(),
+          ),
+          // indicator line/dot
+          LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              final double h = constraints.maxHeight;
+              const double apexFraction = 0.2; // keep in sync with painter apex
+              final double apexY = h * apexFraction;
+              final double clamped = (heightMeters / (maxHeightMeters == 0 ? 1 : maxHeightMeters)).clamp(0.0, 1.0);
+              final double yUnclamped = h - (h * clamped);
+              final double y = yUnclamped < apexY ? apexY : yUnclamped;
+              return GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onVerticalDragUpdate: (DragUpdateDetails d) {
+                  if (onChanged == null) return;
+                  final RenderBox box = context.findRenderObject() as RenderBox;
+                  final Offset local = box.globalToLocal(d.globalPosition);
+                  final double pos = (1 - (local.dy / h)).clamp(0.0, 1.0);
+                  final double cap = 1 - apexFraction; // max usable portion
+                  final double ratio = pos >= cap ? 1.0 : (pos / cap);
+                  onChanged!(ratio * maxHeightMeters);
+                },
+                onTapDown: (TapDownDetails d) {
+                  if (onChanged == null) return;
+                  final RenderBox box = context.findRenderObject() as RenderBox;
+                  final Offset local = box.globalToLocal(d.globalPosition);
+                  final double pos = (1 - (local.dy / h)).clamp(0.0, 1.0);
+                  final double cap = 1 - apexFraction;
+                  final double ratio = pos >= cap ? 1.0 : (pos / cap);
+                  onChanged!(ratio * maxHeightMeters);
+                },
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: <Widget>[
+                    Positioned(
+                      left: constraints.maxWidth / 2 - 1,
+                      top: apexY,
+                      bottom: 6, // leave room for circle at bottom
+                      child: Container(width: 2, color: scheme.outlineVariant.withValues(alpha: 0.4)),
+                    ),
+                    // Value bubble anchored to circle's left; circle remains centered
+                    Positioned(
+                      top: y - 12,
+                      left: () {
+                        final String label = '${heightMeters.toStringAsFixed(1)} m';
+                        final TextStyle style = Theme.of(context).textTheme.bodyMedium ?? const TextStyle(fontSize: 14);
+                        final TextPainter tp = TextPainter(
+                          text: TextSpan(text: label, style: style),
+                          textDirection: TextDirection.ltr,
+                          maxLines: 1,
+                        )..layout();
+                        final double bubbleWidth = tp.width + 24; // horizontal padding 12+12
+                        final double centerX = constraints.maxWidth / 2;
+                        const double radius = 6; // circle radius (12 size)
+                        const double gap = 8; // space between bubble and circle
+                        final double rowLeft = centerX - radius - gap - bubbleWidth; // circle center pinned to centerX
+                        return math.max(0.0, rowLeft);
+                      }(),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surface,
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                            ),
+                            child: Text('${heightMeters.toStringAsFixed(1)} m'),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(color: scheme.primary, shape: BoxShape.circle),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          // value bubble now positioned near the indicator; remove bottom-fixed label
+        ],
+      ),
+    );
+  }
+}
+
+class _MountainPainter extends CustomPainter {
+  _MountainPainter({required this.color, required this.lineColor});
+
+  final Color color;
+  final Color lineColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint p = Paint()..color = color;
+    final Path path = Path()
+      ..moveTo(0, size.height)
+      ..lineTo(size.width * 0.25, size.height * 0.6)
+      ..lineTo(size.width * 0.5, size.height * 0.2)
+      ..lineTo(size.width * 0.75, size.height * 0.65)
+      ..lineTo(size.width, size.height)
+      ..close();
+    canvas.drawPath(path, p);
+    final Paint border = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = lineColor.withValues(alpha: 0.6);
+    canvas.drawPath(path, border);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+ 
 IconData _adaptiveStopIcon() {
   return (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS)
       ? CupertinoIcons.stop_fill
@@ -51,17 +190,17 @@ class ActiveSessionScreen extends ConsumerWidget {
             vm.endSession();
             // On iOS, if presented modally (fullscreenDialog), pop the sheet.
             if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
-              if (Navigator.of(context).canPop()) {
-                Navigator.of(context).pop();
-              }
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
             } else {
               final NavigationScope? scope = NavigationScope.of(context);
               scope?.setTab(0);
             }
-          },
-          tooltip: 'End Session',
+            },
+            tooltip: 'End Session',
           icon: Icon(_adaptiveStopIcon()),
-        ),
+          ),
               ])
           ,
       body: Center(
@@ -129,8 +268,8 @@ class _ActiveBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
         Text(
           adaptiveFormatTime(context, session.startTime),
           style: AppTextStyles.body,
@@ -141,7 +280,7 @@ class _ActiveBody extends ConsumerWidget {
         Expanded(
           child: _AttemptsList(attempts: session.attempts),
         ),
-        const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.md),
         SafeArea(
           top: false,
           child: _TypeAwareAttemptComposer(
@@ -775,13 +914,14 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
                 ),
             ],
           ),
+          if (widget.a is TopRopeAttempt) ...<Widget>[
+            const SizedBox(height: AppSpacing.sm),
+            _TopRopeControls(widget.a as TopRopeAttempt),
+          ],
           if (widget.a is BoulderingAttempt)
             _BoulderAttemptEditor(widget.a as BoulderingAttempt, showNotes: _showNotes),
-          if (widget.a is TopRopeAttempt) ...<Widget>[
-            const SizedBox(height: AppSpacing.xs),
-            _TopRopeControls(widget.a as TopRopeAttempt),
-            if (_showNotes) _RopedAttemptEditor(widget.a as TopRopeAttempt),
-          ],
+          if (widget.a is TopRopeAttempt && _showNotes)
+            _RopedAttemptEditor(widget.a as TopRopeAttempt),
         ],
       ),
     );
@@ -819,12 +959,12 @@ class _BoulderAttemptEditorState extends ConsumerState<_BoulderAttemptEditor> {
         // Flashed moved to leading icon toggle on card header
         if (widget.showNotes)
           AdaptiveTextField(
-            controller: _notes,
+          controller: _notes,
             labelText: 'Notes',
-            minLines: 1,
-            maxLines: 3,
-            onChanged: (String v) => vm.updateBoulderAttemptNotes(widget.attempt.id, v.isEmpty ? null : v),
-          ),
+          minLines: 1,
+          maxLines: 3,
+          onChanged: (String v) => vm.updateBoulderAttemptNotes(widget.attempt.id, v.isEmpty ? null : v),
+        ),
       ],
     );
   }
@@ -876,123 +1016,22 @@ class _TopRopeControls extends ConsumerStatefulWidget {
 }
 
 class _TopRopeControlsState extends ConsumerState<_TopRopeControls> {
-  double? _dragStartX;
-  double _progress = 0; // 0..1
-  int _dir = 0; // -1 left, 1 right
-  double _pillWidth = 160;
-
-  void _applyChange(bool increase) {
-    final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
-    final double step = 0.5; // 0.5m step
-    final double current = widget.attempt.heightMeters;
-    final double next = (increase ? current + step : current - step).clamp(0.0, 200.0);
-    vm.updateTopRopeAttemptHeight(widget.attempt.id, double.parse(next.toStringAsFixed(1)));
-  }
-
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final String display = '${widget.attempt.heightMeters.toStringAsFixed(1)} m';
-    final bool isCupertino = defaultTargetPlatform == TargetPlatform.iOS;
-    return GestureDetector(
-      onTapDown: (TapDownDetails d) {
-        final bool inc = d.localPosition.dx > (_pillWidth / 2);
-        _applyChange(inc);
-        if (isCupertino) return;
-        setState(() {
-          _dir = inc ? 1 : -1;
-          _progress = 1;
-        });
-        Future<void>.delayed(const Duration(milliseconds: 150), () {
-          if (!mounted) return;
-          setState(() {
-            _progress = 0;
-            _dir = 0;
-          });
-        });
+    final double current = widget.attempt.heightMeters;
+    final double maxH = current <= 20 ? 20 : ((current / 5).ceil() * 5).toDouble().clamp(20, 60);
+    return _MountainHeightView(
+      heightMeters: current,
+      maxHeightMeters: maxH,
+      onChanged: (double v) {
+        final double rounded = double.parse(v.toStringAsFixed(1));
+        ref.read(sessionLogProvider.notifier).updateTopRopeAttemptHeight(widget.attempt.id, rounded);
       },
-      onHorizontalDragStart: (DragStartDetails d) {
-        if (isCupertino) return;
-        _dragStartX = d.globalPosition.dx;
-        setState(() {
-          _progress = 0;
-          _dir = 0;
-        });
-      },
-      onHorizontalDragUpdate: (DragUpdateDetails d) {
-        if (isCupertino || _dragStartX == null) return;
-        final double dx = d.globalPosition.dx - _dragStartX!;
-        const double threshold = 80;
-        final int dir = dx == 0 ? 0 : (dx > 0 ? 1 : -1);
-        final double prog = (dx.abs() / threshold).clamp(0.0, 1.0);
-        setState(() {
-          _dir = dir;
-          _progress = prog;
-        });
-      },
-      onHorizontalDragEnd: (DragEndDetails d) {
-        if (isCupertino) return;
-        bool apply = _progress > 0.5 || d.velocity.pixelsPerSecond.dx.abs() > 400;
-        if (apply) {
-          final bool inc = _dir >= 0 && d.velocity.pixelsPerSecond.dx >= 0;
-          _applyChange(inc);
-        }
-        setState(() {
-          _dragStartX = null;
-          _progress = 0;
-          _dir = 0;
-        });
-      },
-      child: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          final double width = constraints.maxWidth.isFinite ? constraints.maxWidth : 160;
-          _pillWidth = width;
-          final Color overlay = _dir == 0
-              ? Colors.transparent
-              : (_dir > 0 ? Colors.green.withValues(alpha: 0.25) : Colors.red.withValues(alpha: 0.25));
-          final double fillWidth = width * _progress;
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: Stack(
-              alignment: Alignment.center,
-              children: <Widget>[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Icon(Icons.chevron_left, size: 16, color: scheme.onSurface.withValues(alpha: 0.36)),
-                      const SizedBox(width: 4),
-                      Text('Height $display'),
-                      const SizedBox(width: 4),
-                      Icon(Icons.chevron_right, size: 16, color: scheme.onSurface.withValues(alpha: 0.36)),
-                    ],
-                  ),
-                ),
-                if (_dir != 0)
-                  Positioned(
-                    left: _dir > 0 ? 0 : null,
-                    right: _dir < 0 ? 0 : null,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 80),
-                      curve: Curves.easeOut,
-                      width: fillWidth,
-                      height: 28,
-                      color: overlay,
-                    ),
-                  ),
-              ],
-            ),
-          );
-        },
-      ),
     );
   }
 }
+
+// Removed legacy wall control class
 
 class _EmptyAttempts extends StatelessWidget {
   const _EmptyAttempts();

@@ -86,6 +86,8 @@ Here's what the card displays:
 - Activity date/time
 - Number of routes/problems
 - Number of flashes/sends
+- And it also shows how heigh the user climbed and it compares the height to climbing some famous
+  mountains.
 
 When the user taps on the cards, a sheet view to display the activity details who up.
 
