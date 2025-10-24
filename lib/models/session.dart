@@ -65,6 +65,8 @@ class TopRopeAttempt extends ClimbAttempt {
     required this.heightMeters,
     required this.falls,
     required this.completed,
+    this.sent,
+    this.attemptNumber,
     super.routeName,
     super.notes,
   });
@@ -73,6 +75,34 @@ class TopRopeAttempt extends ClimbAttempt {
   final double heightMeters;
   final int falls;
   final bool completed;
+  final bool? sent;
+  final int? attemptNumber;
+
+  int get attemptNo => attemptNumber ?? 1;
+  bool get isSent => sent ?? false;
+
+  TopRopeAttempt copyWith({
+    Grade? grade,
+    double? heightMeters,
+    int? falls,
+    bool? completed,
+    bool? sent,
+    int? attemptNumber,
+    String? notes,
+  }) {
+    return TopRopeAttempt(
+      id: id,
+      timestamp: timestamp,
+      grade: grade ?? this.grade,
+      heightMeters: heightMeters ?? this.heightMeters,
+      falls: falls ?? this.falls,
+      completed: completed ?? this.completed,
+      sent: sent ?? this.sent,
+      attemptNumber: attemptNumber ?? this.attemptNumber,
+      routeName: routeName,
+      notes: notes ?? this.notes,
+    );
+  }
 }
 
 class LeadAttempt extends ClimbAttempt {
@@ -91,6 +121,25 @@ class LeadAttempt extends ClimbAttempt {
   final double heightMeters;
   final int falls;
   final bool completed;
+
+  LeadAttempt copyWith({
+    Grade? grade,
+    double? heightMeters,
+    int? falls,
+    bool? completed,
+    String? notes,
+  }) {
+    return LeadAttempt(
+      id: id,
+      timestamp: timestamp,
+      grade: grade ?? this.grade,
+      heightMeters: heightMeters ?? this.heightMeters,
+      falls: falls ?? this.falls,
+      completed: completed ?? this.completed,
+      routeName: routeName,
+      notes: notes ?? this.notes,
+    );
+  }
 }
 
 @immutable

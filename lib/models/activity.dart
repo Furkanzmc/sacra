@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 
 enum ClimbType { bouldering, topRope, lead }
 
-enum GradeSystem { vScale, font, gymColor }
+enum GradeSystem { vScale, yds, font, gymColor }
 
 @immutable
 class Grade {

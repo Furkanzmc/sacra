@@ -56,7 +56,7 @@ It is extremely important to make it as easy as possible to log new climbs.
 #### Screens
 
 1. Log-in screen
-2. Feed
+2. Feed/Home
     1. For now, just your own feed
 3. Activity log screen
     1. Bouldering
@@ -66,6 +66,53 @@ It is extremely important to make it as easy as possible to log new climbs.
     1. Set home gym
     2. Statistics
         1. Achievements (First purple, V6 etc)
+    3. Settings button
+
+##### Home Screen
+
+This is where we display some statistics. We display the number of climb activities this week, the
+goal that the user set for herself and whether that goal has been reached, and the list of
+activities below that.
+
+The statistics graphs are displayed in a swipe area so that we can swipe through different stats,
+but also we can expand them into a list view.
+
+This is where we also see a list of the past sessions. The sessions are displayed in a grid, and
+each card shows brief information about the session.
+
+Here's what the card displays:
+
+- Activity type
+- Activity date/time
+- Number of routes/problems
+- Number of flashes/sends
+
+When the user taps on the cards, a sheet view to display the activity details who up.
+
+##### Activity Logging Screen
+
+On this screen, the user can add a note for the session, log attempts, and change the details of the
+attempts.
+
+Each attempt comes with the following details:
+
+- The log number
+- Whether it was a flash or sent
+- Whether it was completed
+- Difficulty
+- Number of attempts
+- A note
+
+The goal is the make it as easy as possible to log these attempts.
+
+##### Profile Screen
+
+This is where we display the profile photo for the user and show some additional information.
+The highest difficult they climb for bouldering, top rope, and lead.
+The home gym, the gym that they usually go to.
+And some other things.
+
+This is where they can also go to the settings page.
 
 ## Design
 

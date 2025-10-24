@@ -235,7 +235,7 @@ class _SessionNotesFieldState extends ConsumerState<_SessionNotesField> {
         padding: const EdgeInsets.only(top: 0),
         child: AdaptiveTextField(
           controller: _controller,
-          labelText: 'Session notes (optional)',
+          labelText: 'Session notes',
           minLines: 1,
           maxLines: 3,
           onChanged: (String v) => ref.read(sessionLogProvider.notifier).updateSessionNotes(v.isEmpty ? null : v),
@@ -286,6 +286,14 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
           const SizedBox(height: AppSpacing.sm),
           if (widget.type == ClimbType.bouldering)
             VGradePopupScrubber(
+              onPicked: (Grade g) {
+                _gradeCtrl.text = g.value;
+                _onAdd();
+              },
+              trailing: _SessionNotesButton(),
+            )
+          else if (widget.type == ClimbType.topRope)
+            YdsGradePopupScrubber(
               onPicked: (Grade g) {
                 _gradeCtrl.text = g.value;
                 _onAdd();
@@ -358,10 +366,12 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
           TopRopeAttempt(
             id: id,
             timestamp: now,
-            grade: grade,
+            grade: Grade(system: GradeSystem.yds, value: _gradeCtrl.text.isEmpty ? '5.8' : _gradeCtrl.text),
             heightMeters: height,
             falls: 0,
             completed: _completed,
+            sent: false,
+            attemptNumber: 1,
           ),
         );
         break;
@@ -371,7 +381,7 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
           LeadAttempt(
             id: id,
             timestamp: now,
-            grade: grade,
+            grade: Grade(system: GradeSystem.yds, value: _gradeCtrl.text.isEmpty ? '5.10a' : _gradeCtrl.text),
             heightMeters: height,
             falls: 0,
             completed: _completed,
@@ -434,7 +444,7 @@ class _AttemptCard extends ConsumerStatefulWidget {
 }
 
 class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAliveClientMixin<_AttemptCard> {
-  late bool _showNotes = widget.a is BoulderingAttempt && ((widget.a as BoulderingAttempt).notes ?? '').isNotEmpty;
+  late bool _showNotes = ((widget.a.notes) ?? '').isNotEmpty;
   bool? _sentLocal;
   double? _attemptDragStartX;
   double _attemptDragProgress = 0; // 0..1
@@ -481,11 +491,10 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
     late final String title;
     if (widget.a is BoulderingAttempt) {
       final BoulderingAttempt b = widget.a as BoulderingAttempt;
-      final bool flashed = _sentLocal ?? b.sent;
-      title = '${b.grade.value} • ${flashed ? 'Flashed' : 'Project'}';
+      title = b.grade.value;
     } else if (widget.a is TopRopeAttempt) {
       final TopRopeAttempt t = widget.a as TopRopeAttempt;
-      title = '${t.grade.value} • ${t.heightMeters} m • ${t.completed ? 'Completed' : 'Attempt'}';
+      title = t.grade.value;
     } else if (widget.a is LeadAttempt) {
       final LeadAttempt l = widget.a as LeadAttempt;
       title = '${l.grade.value} • ${l.heightMeters} m • ${l.completed ? 'Completed' : 'Attempt'}';
@@ -493,14 +502,14 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
       title = 'Attempt';
     }
 
-    final bool hasNotes = widget.a is BoulderingAttempt && (((widget.a as BoulderingAttempt).notes) ?? '').isNotEmpty;
+    final bool hasNotes = ((widget.a.notes) ?? '').isNotEmpty;
 
     return AdaptiveCard(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          if (widget.a is BoulderingAttempt)
+          if (widget.a is BoulderingAttempt || widget.a is TopRopeAttempt)
             Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
@@ -514,55 +523,104 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
                   child: Text('#${widget.number}'),
                 ),
                 const SizedBox(width: AppSpacing.xs),
-                // Flashed
+                // Flashed (Bouldering) / Sent (Top rope)
                 AdaptiveIconButton(
                   onPressed: () {
                     final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
-                    final BoulderingAttempt b = widget.a as BoulderingAttempt;
-                    final bool next = !(_sentLocal ?? b.sent);
-                    setState(() => _sentLocal = next);
-                    vm.updateBoulderAttemptSent(b.id, next);
+                    if (widget.a is BoulderingAttempt) {
+                      final BoulderingAttempt b = widget.a as BoulderingAttempt;
+                      final bool next = !(_sentLocal ?? b.sent);
+                      setState(() => _sentLocal = next);
+                      vm.updateBoulderAttemptSent(b.id, next);
+                    } else if (widget.a is TopRopeAttempt) {
+                      final TopRopeAttempt t = widget.a as TopRopeAttempt;
+                      vm.updateTopRopeAttemptSent(t.id, !(t.isSent));
+                    }
                   },
                   icon: Icon(
-                    defaultTargetPlatform == TargetPlatform.iOS
-                        ? ((_sentLocal ?? (widget.a as BoulderingAttempt).sent) ? CupertinoIcons.bolt_fill : CupertinoIcons.bolt)
-                        : ((_sentLocal ?? (widget.a as BoulderingAttempt).sent) ? Icons.bolt : Icons.bolt_outlined),
-                    color: (_sentLocal ?? (widget.a as BoulderingAttempt).sent) ? Theme.of(context).colorScheme.primary : null,
+                    () {
+                      if (widget.a is BoulderingAttempt) {
+                        final bool on = (_sentLocal ?? (widget.a as BoulderingAttempt).sent);
+                        return defaultTargetPlatform == TargetPlatform.iOS
+                            ? (on ? CupertinoIcons.bolt_fill : CupertinoIcons.bolt)
+                            : (on ? Icons.bolt : Icons.bolt_outlined);
+                      }
+                      // Top rope uses a flag icon for Sent
+                      return defaultTargetPlatform == TargetPlatform.iOS
+                          ? ((widget.a as TopRopeAttempt).isSent ? CupertinoIcons.flag_fill : CupertinoIcons.flag)
+                          : ((widget.a as TopRopeAttempt).isSent ? Icons.flag : Icons.outlined_flag);
+                    }(),
+                    color: () {
+                      if (widget.a is BoulderingAttempt) {
+                        return (_sentLocal ?? (widget.a as BoulderingAttempt).sent) ? Theme.of(context).colorScheme.primary : null;
+                      }
+                      return (widget.a as TopRopeAttempt).isSent ? Theme.of(context).colorScheme.primary : null;
+                    }(),
                   ),
                 ),
-                // Completed
-                AdaptiveIconButton(
-                  onPressed: () {
-                    final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
-                    final BoulderingAttempt b = widget.a as BoulderingAttempt;
-                    vm.updateBoulderAttemptCompleted(b.id, !(b.isCompleted));
-                  },
-                  icon: Icon(
-                    defaultTargetPlatform == TargetPlatform.iOS
-                        ? (((widget.a as BoulderingAttempt).isCompleted) ? CupertinoIcons.check_mark_circled_solid : CupertinoIcons.check_mark_circled)
-                        : (((widget.a as BoulderingAttempt).isCompleted) ? Icons.check_circle : Icons.check_circle_outline),
-                    color: ((widget.a as BoulderingAttempt).isCompleted) ? Theme.of(context).colorScheme.primary : null,
+                if (widget.a is BoulderingAttempt)
+                  AdaptiveIconButton(
+                    onPressed: () {
+                      final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
+                      final BoulderingAttempt b = widget.a as BoulderingAttempt;
+                      vm.updateBoulderAttemptCompleted(b.id, !(b.isCompleted));
+                    },
+                    icon: Icon(
+                      defaultTargetPlatform == TargetPlatform.iOS
+                          ? (((widget.a as BoulderingAttempt).isCompleted) ? CupertinoIcons.check_mark_circled_solid : CupertinoIcons.check_mark_circled)
+                          : (((widget.a as BoulderingAttempt).isCompleted) ? Icons.check_circle : Icons.check_circle_outline),
+                      color: ((widget.a as BoulderingAttempt).isCompleted) ? Theme.of(context).colorScheme.primary : null,
+                    ),
                   ),
-                ),
+                if (widget.a is TopRopeAttempt)
+                  AdaptiveIconButton(
+                    onPressed: () {
+                      final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
+                      final TopRopeAttempt t = widget.a as TopRopeAttempt;
+                      vm.updateTopRopeAttemptCompleted(t.id, !t.completed);
+                    },
+                    icon: Icon(
+                      defaultTargetPlatform == TargetPlatform.iOS
+                          ? (((widget.a as TopRopeAttempt).completed) ? CupertinoIcons.check_mark_circled_solid : CupertinoIcons.check_mark_circled)
+                          : (((widget.a as TopRopeAttempt).completed) ? Icons.check_circle : Icons.check_circle_outline),
+                      color: ((widget.a as TopRopeAttempt).completed) ? Theme.of(context).colorScheme.primary : null,
+                    ),
+                  ),
               ],
             ),
-          if (widget.a is BoulderingAttempt) const SizedBox(height: AppSpacing.xs),
+          if (widget.a is BoulderingAttempt || widget.a is TopRopeAttempt) const SizedBox(height: AppSpacing.xs),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               // Title first on second row
-              Text(title),
-              if (widget.a is BoulderingAttempt) ...<Widget>[
+              Text(() {
+                if (widget.a is BoulderingAttempt) return title;
+                if (widget.a is TopRopeAttempt) {
+                  final TopRopeAttempt t = widget.a as TopRopeAttempt;
+                  return t.grade.value; // no height or sent/attempt label here
+                }
+                return title;
+              }()),
+              if (widget.a is BoulderingAttempt || widget.a is TopRopeAttempt) ...<Widget>[
                 const SizedBox(width: AppSpacing.sm),
                 GestureDetector(
                   onTapDown: (TapDownDetails d) {
                     if (defaultTargetPlatform == TargetPlatform.iOS) return;
-                    final BoulderingAttempt b = widget.a as BoulderingAttempt;
                     final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
-                    final double localX = d.localPosition.dx;
-                    final bool inc = localX > (_attemptPillWidth / 2);
-                    final int next = (b.attemptNo + (inc ? 1 : -1)).clamp(1, 9999);
-                    vm.updateBoulderAttemptNumber(b.id, next);
+                    bool inc = true;
+                    if (widget.a is BoulderingAttempt) {
+                      final BoulderingAttempt b = widget.a as BoulderingAttempt;
+                      final double localX = d.localPosition.dx;
+                      inc = localX > (_attemptPillWidth / 2);
+                      final int next = (b.attemptNo + (inc ? 1 : -1)).clamp(1, 9999);
+                      vm.updateBoulderAttemptNumber(b.id, next);
+                    } else if (widget.a is TopRopeAttempt) {
+                      final TopRopeAttempt t = widget.a as TopRopeAttempt;
+                      final double localX = d.localPosition.dx;
+                      inc = localX > (_attemptPillWidth / 2);
+                      final int next = (t.attemptNo + (inc ? 1 : -1)).clamp(1, 9999);
+                      vm.updateTopRopeAttemptNumber(t.id, next);
+                    }
                     // Play fill animation for tap
                     setState(() {
                       _attemptDragDir = inc ? 1 : -1;
@@ -596,13 +654,19 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
                     });
                   },
                   onHorizontalDragEnd: (DragEndDetails d) {
-                    final BoulderingAttempt b = widget.a as BoulderingAttempt;
                     final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
                     bool apply = _attemptDragProgress > 0.5 || d.velocity.pixelsPerSecond.dx.abs() > 400;
                     if (apply) {
                       final bool inc = _attemptDragDir >= 0 && d.velocity.pixelsPerSecond.dx >= 0;
-                      final int next = (b.attemptNo + (inc ? 1 : -1)).clamp(1, 9999);
-                      vm.updateBoulderAttemptNumber(b.id, next);
+                      if (widget.a is BoulderingAttempt) {
+                        final BoulderingAttempt b = widget.a as BoulderingAttempt;
+                        final int next = (b.attemptNo + (inc ? 1 : -1)).clamp(1, 9999);
+                        vm.updateBoulderAttemptNumber(b.id, next);
+                      } else if (widget.a is TopRopeAttempt) {
+                        final TopRopeAttempt t = widget.a as TopRopeAttempt;
+                        final int next = (t.attemptNo + (inc ? 1 : -1)).clamp(1, 9999);
+                        vm.updateTopRopeAttemptNumber(t.id, next);
+                      }
                     }
                     setState(() {
                       _attemptDragStartX = null;
@@ -641,7 +705,13 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
                                       opacity: _hintOpacity,
                                       child: Icon(Icons.chevron_left, size: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.36)),
                                     ),
-                                  Text('Attempt ${(widget.a as BoulderingAttempt).attemptNo}'),
+                                  Text('Attempt ' + (
+                                    () {
+                                      if (widget.a is BoulderingAttempt) return (widget.a as BoulderingAttempt).attemptNo.toString();
+                                      if (widget.a is TopRopeAttempt) return (widget.a as TopRopeAttempt).attemptNo.toString();
+                                      return '1';
+                                    }()
+                                  )),
                                   if (showHint)
                                     AnimatedOpacity(
                                       duration: const Duration(milliseconds: 300),
@@ -671,7 +741,7 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
                 ),
               ],
               const Spacer(),
-              if (widget.a is BoulderingAttempt)
+              if (widget.a is BoulderingAttempt || widget.a is TopRopeAttempt)
                 Stack(
                   clipBehavior: Clip.none,
                   children: <Widget>[
@@ -707,6 +777,11 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
           ),
           if (widget.a is BoulderingAttempt)
             _BoulderAttemptEditor(widget.a as BoulderingAttempt, showNotes: _showNotes),
+          if (widget.a is TopRopeAttempt) ...<Widget>[
+            const SizedBox(height: AppSpacing.xs),
+            _TopRopeControls(widget.a as TopRopeAttempt),
+            if (_showNotes) _RopedAttemptEditor(widget.a as TopRopeAttempt),
+          ],
         ],
       ),
     );
@@ -751,6 +826,170 @@ class _BoulderAttemptEditorState extends ConsumerState<_BoulderAttemptEditor> {
             onChanged: (String v) => vm.updateBoulderAttemptNotes(widget.attempt.id, v.isEmpty ? null : v),
           ),
       ],
+    );
+  }
+}
+
+class _RopedAttemptEditor extends ConsumerStatefulWidget {
+  const _RopedAttemptEditor(this.attempt);
+
+  final TopRopeAttempt attempt;
+
+  @override
+  ConsumerState<_RopedAttemptEditor> createState() => _RopedAttemptEditorState();
+}
+
+class _RopedAttemptEditorState extends ConsumerState<_RopedAttemptEditor> {
+  late final TextEditingController _notes = TextEditingController(text: widget.attempt.notes ?? '');
+
+  @override
+  void dispose() {
+    _notes.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        AdaptiveTextField(
+          controller: _notes,
+          labelText: 'Notes',
+          minLines: 1,
+          maxLines: 3,
+          onChanged: (String v) => vm.updateTopRopeAttemptNotes(widget.attempt.id, v.isEmpty ? null : v),
+        ),
+      ],
+    );
+  }
+}
+
+class _TopRopeControls extends ConsumerStatefulWidget {
+  const _TopRopeControls(this.attempt);
+
+  final TopRopeAttempt attempt;
+
+  @override
+  ConsumerState<_TopRopeControls> createState() => _TopRopeControlsState();
+}
+
+class _TopRopeControlsState extends ConsumerState<_TopRopeControls> {
+  double? _dragStartX;
+  double _progress = 0; // 0..1
+  int _dir = 0; // -1 left, 1 right
+  double _pillWidth = 160;
+
+  void _applyChange(bool increase) {
+    final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
+    final double step = 0.5; // 0.5m step
+    final double current = widget.attempt.heightMeters;
+    final double next = (increase ? current + step : current - step).clamp(0.0, 200.0);
+    vm.updateTopRopeAttemptHeight(widget.attempt.id, double.parse(next.toStringAsFixed(1)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final String display = '${widget.attempt.heightMeters.toStringAsFixed(1)} m';
+    final bool isCupertino = defaultTargetPlatform == TargetPlatform.iOS;
+    return GestureDetector(
+      onTapDown: (TapDownDetails d) {
+        final bool inc = d.localPosition.dx > (_pillWidth / 2);
+        _applyChange(inc);
+        if (isCupertino) return;
+        setState(() {
+          _dir = inc ? 1 : -1;
+          _progress = 1;
+        });
+        Future<void>.delayed(const Duration(milliseconds: 150), () {
+          if (!mounted) return;
+          setState(() {
+            _progress = 0;
+            _dir = 0;
+          });
+        });
+      },
+      onHorizontalDragStart: (DragStartDetails d) {
+        if (isCupertino) return;
+        _dragStartX = d.globalPosition.dx;
+        setState(() {
+          _progress = 0;
+          _dir = 0;
+        });
+      },
+      onHorizontalDragUpdate: (DragUpdateDetails d) {
+        if (isCupertino || _dragStartX == null) return;
+        final double dx = d.globalPosition.dx - _dragStartX!;
+        const double threshold = 80;
+        final int dir = dx == 0 ? 0 : (dx > 0 ? 1 : -1);
+        final double prog = (dx.abs() / threshold).clamp(0.0, 1.0);
+        setState(() {
+          _dir = dir;
+          _progress = prog;
+        });
+      },
+      onHorizontalDragEnd: (DragEndDetails d) {
+        if (isCupertino) return;
+        bool apply = _progress > 0.5 || d.velocity.pixelsPerSecond.dx.abs() > 400;
+        if (apply) {
+          final bool inc = _dir >= 0 && d.velocity.pixelsPerSecond.dx >= 0;
+          _applyChange(inc);
+        }
+        setState(() {
+          _dragStartX = null;
+          _progress = 0;
+          _dir = 0;
+        });
+      },
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final double width = constraints.maxWidth.isFinite ? constraints.maxWidth : 160;
+          _pillWidth = width;
+          final Color overlay = _dir == 0
+              ? Colors.transparent
+              : (_dir > 0 ? Colors.green.withValues(alpha: 0.25) : Colors.red.withValues(alpha: 0.25));
+          final double fillWidth = width * _progress;
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: Stack(
+              alignment: Alignment.center,
+              children: <Widget>[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Icon(Icons.chevron_left, size: 16, color: scheme.onSurface.withValues(alpha: 0.36)),
+                      const SizedBox(width: 4),
+                      Text('Height $display'),
+                      const SizedBox(width: 4),
+                      Icon(Icons.chevron_right, size: 16, color: scheme.onSurface.withValues(alpha: 0.36)),
+                    ],
+                  ),
+                ),
+                if (_dir != 0)
+                  Positioned(
+                    left: _dir > 0 ? 0 : null,
+                    right: _dir < 0 ? 0 : null,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 80),
+                      curve: Curves.easeOut,
+                      width: fillWidth,
+                      height: 28,
+                      color: overlay,
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }
