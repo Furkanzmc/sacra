@@ -38,27 +38,6 @@ class _VGradePopupScrubberState extends State<VGradePopupScrubber> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            _ScrollableShadowRow(
-              controller: _mainCtrl,
-              showLeft: _mainShowLeft,
-              showRight: _mainShowRight,
-              onMetrics: (bool left, bool right) => setState(() {
-                _mainShowLeft = left;
-                _mainShowRight = right;
-              }),
-              child: Row(
-                children: _grades
-                    .map((String g) => Padding(
-                          padding: const EdgeInsets.only(right: 8, bottom: 8),
-                          child: _Segment(
-                            label: g,
-                            onPressed: () => _onPick(g),
-                          ),
-                        ))
-                    .toList(),
-              ),
-              trailing: widget.trailing,
-            ),
             if (_shortcuts.isNotEmpty)
               _ScrollableShadowRow(
                 controller: _shortCtrl,
@@ -80,6 +59,27 @@ class _VGradePopupScrubberState extends State<VGradePopupScrubber> {
                       .toList(),
                 ),
               ),
+            _ScrollableShadowRow(
+              controller: _mainCtrl,
+              showLeft: _mainShowLeft,
+              showRight: _mainShowRight,
+              onMetrics: (bool left, bool right) => setState(() {
+                _mainShowLeft = left;
+                _mainShowRight = right;
+              }),
+              child: Row(
+                children: _grades
+                    .map((String g) => Padding(
+                          padding: const EdgeInsets.only(right: 8, bottom: 8),
+                          child: _Segment(
+                            label: g,
+                            onPressed: () => _onPick(g),
+                          ),
+                        ))
+                    .toList(),
+              ),
+              trailing: widget.trailing,
+            ),
           ],
         );
       },
@@ -131,27 +131,6 @@ class _YdsGradePopupScrubberState extends State<YdsGradePopupScrubber> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            _ScrollableShadowRow(
-              controller: _mainCtrl,
-              showLeft: _mainShowLeft,
-              showRight: _mainShowRight,
-              onMetrics: (bool left, bool right) => setState(() {
-                _mainShowLeft = left;
-                _mainShowRight = right;
-              }),
-              child: Row(
-                children: _grades
-                    .map((String g) => Padding(
-                          padding: const EdgeInsets.only(right: 8, bottom: 8),
-                          child: _Segment(
-                            label: g,
-                            onPressed: () => _onPick(g),
-                          ),
-                        ))
-                    .toList(),
-              ),
-              trailing: widget.trailing,
-            ),
             if (_shortcuts.isNotEmpty)
               _ScrollableShadowRow(
                 controller: _shortCtrl,
@@ -173,6 +152,27 @@ class _YdsGradePopupScrubberState extends State<YdsGradePopupScrubber> {
                       .toList(),
                 ),
               ),
+            _ScrollableShadowRow(
+              controller: _mainCtrl,
+              showLeft: _mainShowLeft,
+              showRight: _mainShowRight,
+              onMetrics: (bool left, bool right) => setState(() {
+                _mainShowLeft = left;
+                _mainShowRight = right;
+              }),
+              child: Row(
+                children: _grades
+                    .map((String g) => Padding(
+                          padding: const EdgeInsets.only(right: 8, bottom: 8),
+                          child: _Segment(
+                            label: g,
+                            onPressed: () => _onPick(g),
+                          ),
+                        ))
+                    .toList(),
+              ),
+              trailing: widget.trailing,
+            ),
           ],
         );
       },
