@@ -354,25 +354,35 @@ class _ActiveBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
+    final SessionLogState st = ref.watch(sessionLogProvider);
+    final String? activeId = st.activeSession?.id;
+    final bool isActive = activeId == session.id;
+    // Choose a live session reference so edits reflect immediately
+    final Session displaySession = () {
+      if (st.activeSession?.id == session.id) return st.activeSession!;
+      if (st.editingSession?.id == session.id) return st.editingSession!;
+      return session;
+    }();
     return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
         Text(
-          adaptiveFormatTime(context, session.startTime),
+          adaptiveFormatTime(context, displaySession.startTime),
           style: AppTextStyles.body,
         ),
         const SizedBox(height: AppSpacing.sm),
         const _SessionNotesField(),
         const SizedBox(height: AppSpacing.sm),
         Expanded(
-          child: _AttemptsList(attempts: session.attempts),
+          child: _AttemptsList(attempts: displaySession.attempts),
         ),
           const SizedBox(height: AppSpacing.md),
         SafeArea(
           top: false,
           child: _TypeAwareAttemptComposer(
-            type: session.climbType,
+            type: displaySession.climbType,
             onAdd: vm.addAttempt,
+            readOnly: !isActive,
           ),
         ),
       ],
@@ -476,10 +486,12 @@ class _TypeAwareAttemptComposer extends StatefulWidget {
   const _TypeAwareAttemptComposer({
     required this.type,
     required this.onAdd,
+    this.readOnly = false,
   });
 
   final ClimbType type;
   final void Function(ClimbAttempt attempt) onAdd;
+  final bool readOnly;
 
   @override
   State<_TypeAwareAttemptComposer> createState() => _TypeAwareAttemptComposerState();
@@ -489,6 +501,7 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
   final TextEditingController _gradeCtrl = TextEditingController();
   final TextEditingController _heightCtrl = TextEditingController();
   bool _completed = false;
+  late bool _editable = !widget.readOnly;
 
   @override
   void dispose() {
@@ -508,23 +521,51 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          Row(
+            children: <Widget>[
+              // Move notes button to top-left
+              _SessionNotesButton(),
+              const Spacer(),
+              // Edit toggle on the right to enable editing when viewing
+              AdaptiveIconButton(
+                onPressed: () => setState(() => _editable = !_editable),
+                tooltip: _editable ? 'Disable editing' : 'Enable editing',
+                icon: Icon(
+                  defaultTargetPlatform == TargetPlatform.iOS
+                      ? (_editable ? CupertinoIcons.lock_open : CupertinoIcons.pencil)
+                      : (_editable ? Icons.lock_open : Icons.edit),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
           const Text('Add Attempt'),
           const SizedBox(height: AppSpacing.sm),
           if (widget.type == ClimbType.bouldering)
-            VGradePopupScrubber(
-              onPicked: (Grade g) {
-                _gradeCtrl.text = g.value;
-                _onAdd();
-              },
-              trailing: _SessionNotesButton(),
+            IgnorePointer(
+              ignoring: !_editable,
+              child: Opacity(
+                opacity: _editable ? 1.0 : 0.5,
+                child: VGradePopupScrubber(
+                  onPicked: (Grade g) {
+                    _gradeCtrl.text = g.value;
+                    _onAdd();
+                  },
+                ),
+              ),
             )
           else if (widget.type == ClimbType.topRope || widget.type == ClimbType.lead)
-            YdsGradePopupScrubber(
-              onPicked: (Grade g) {
-                _gradeCtrl.text = g.value;
-                _onAdd();
-              },
-              trailing: _SessionNotesButton(),
+            IgnorePointer(
+              ignoring: !_editable,
+              child: Opacity(
+                opacity: _editable ? 1.0 : 0.5,
+                child: YdsGradePopupScrubber(
+                  onPicked: (Grade g) {
+                    _gradeCtrl.text = g.value;
+                    _onAdd();
+                  },
+                ),
+              ),
             )
           else
             Wrap(
