@@ -116,6 +116,22 @@ class SessionLogViewModel extends Notifier<SessionLogState> {
     }
   }
 
+  void deleteAttempt(String attemptId) {
+    if (state.activeSession != null) {
+      final Session current = state.activeSession!;
+      final List<ClimbAttempt> next =
+          current.attempts.where((ClimbAttempt a) => a.id != attemptId).toList();
+      state = state.copyWith(activeSession: current.copyWith(attempts: next));
+      return;
+    }
+    if (state.editingSession != null) {
+      final Session current = state.editingSession!;
+      final List<ClimbAttempt> next =
+          current.attempts.where((ClimbAttempt a) => a.id != attemptId).toList();
+      state = state.copyWith(editingSession: current.copyWith(attempts: next));
+    }
+  }
+
   void updateBoulderAttemptNumber(String attemptId, int attemptNumber) {
     if (state.activeSession != null) {
       final Session current = state.activeSession!;

@@ -344,6 +344,43 @@ Future<bool> _confirmEndSession(BuildContext context) async {
       false;
 }
 
+Future<bool> _confirmDeleteAttempt(BuildContext context) async {
+  if (defaultTargetPlatform == TargetPlatform.iOS) {
+    return await showCupertinoDialog<bool>(
+          context: context,
+          builder: (BuildContext ctx) => CupertinoAlertDialog(
+            title: const Text('Delete attempt?'),
+            content: const Text('This action cannot be undone.'),
+            actions: <Widget>[
+              CupertinoDialogAction(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                isDefaultAction: true,
+                child: const Text('Cancel'),
+              ),
+              CupertinoDialogAction(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                isDestructiveAction: true,
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+  return await showDialog<bool>(
+        context: context,
+        builder: (BuildContext ctx) => AlertDialog(
+          title: const Text('Delete attempt?'),
+          content: const Text('This action cannot be undone.'),
+          actions: <Widget>[
+            TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Delete')),
+          ],
+        ),
+      ) ??
+      false;
+}
+
 final StateProvider<bool> sessionNotesVisibleProvider = StateProvider<bool>((StateProviderRef<bool> ref) => false);
 
 class _ActiveBody extends ConsumerWidget {
@@ -1131,6 +1168,18 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
                       ),
                   ],
                 ),
+              const SizedBox(width: AppSpacing.xs),
+              AdaptiveIconButton(
+                onPressed: () async {
+                  final bool ok = await _confirmDeleteAttempt(context);
+                  if (!ok) return;
+                  ref.read(sessionLogProvider.notifier).deleteAttempt(widget.a.id);
+                },
+                tooltip: 'Delete attempt',
+                icon: Icon(
+                  defaultTargetPlatform == TargetPlatform.iOS ? CupertinoIcons.trash : Icons.delete_outline,
+                ),
+              ),
             ],
           ),
           if ((widget.a is TopRopeAttempt || widget.a is LeadAttempt) && showHeight) ...<Widget>[
