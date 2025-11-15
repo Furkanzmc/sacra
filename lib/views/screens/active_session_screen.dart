@@ -265,31 +265,7 @@ class ActiveSessionScreen extends ConsumerWidget {
         effectiveSession == null ? 'Active Session' : 'Active: $displayType',
         style: AppTextStyles.title,
       ),
-      actions: (session != null)
-          ? null // viewing/editing a past session; no end button
-          : (effectiveSession == null
-              ? null
-              : <Widget>[
-        AdaptiveIconButton(
-          onPressed: () async {
-            final bool confirmed = await _confirmEndSession(context);
-            if (!confirmed) return;
-            vm.endSession();
-            // On iOS, if presented modally (fullscreenDialog), pop the sheet.
-            if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
-        if (Navigator.of(context).canPop()) {
-          Navigator.of(context).pop();
-        }
-            } else {
-              final NavigationScope? scope = NavigationScope.of(context);
-              scope?.setTab(0);
-            }
-            },
-            tooltip: 'End Session',
-          icon: Icon(_adaptiveStopIcon()),
-          ),
-              ])
-          ,
+      actions: null,
       body: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(
@@ -428,6 +404,21 @@ class _ActiveBody extends ConsumerWidget {
               type: displaySession.climbType,
               onAdd: vm.addAttempt,
               readOnly: !isActive,
+              showEndAction: isActive,
+              onEndSession: () async {
+                final bool confirmed = await _confirmEndSession(context);
+                if (!confirmed) return false;
+                ref.read(sessionLogProvider.notifier).endSession();
+                if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  }
+                } else {
+                  final NavigationScope? scope = NavigationScope.of(context);
+                  scope?.setTab(0);
+                }
+                return true;
+              },
             ),
           ),
         ),
@@ -533,11 +524,15 @@ class _TypeAwareAttemptComposer extends StatefulWidget {
     required this.type,
     required this.onAdd,
     this.readOnly = false,
+    this.showEndAction = false,
+    this.onEndSession,
   });
 
   final ClimbType type;
   final void Function(ClimbAttempt attempt) onAdd;
   final bool readOnly;
+  final bool showEndAction;
+  final Future<bool> Function()? onEndSession;
 
   @override
   State<_TypeAwareAttemptComposer> createState() => _TypeAwareAttemptComposerState();
@@ -572,16 +567,27 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
               // Move notes button to top-left
               _SessionNotesButton(),
               const Spacer(),
-              // Edit toggle on the right to enable editing when viewing
-              AdaptiveIconButton(
-                onPressed: () => setState(() => _editable = !_editable),
-                tooltip: _editable ? 'Disable editing' : 'Enable editing',
-                icon: Icon(
-                  defaultTargetPlatform == TargetPlatform.iOS
-                      ? (_editable ? CupertinoIcons.lock_open : CupertinoIcons.pencil)
-                      : (_editable ? Icons.lock_open : Icons.edit),
+              if (widget.showEndAction)
+                AdaptiveIconButton(
+                  onPressed: () async {
+                    if (widget.onEndSession == null) return;
+                    final bool ok = await widget.onEndSession!();
+                    if (!ok) return;
+                  },
+                  tooltip: 'End Session',
+                  icon: Icon(_adaptiveStopIcon()),
                 ),
-              ),
+              // Edit toggle on the right to enable editing when viewing
+              if (widget.readOnly)
+                AdaptiveIconButton(
+                  onPressed: () => setState(() => _editable = !_editable),
+                  tooltip: _editable ? 'Disable editing' : 'Enable editing',
+                  icon: Icon(
+                    defaultTargetPlatform == TargetPlatform.iOS
+                        ? (_editable ? CupertinoIcons.lock_open : CupertinoIcons.pencil)
+                        : (_editable ? Icons.lock_open : Icons.edit),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
