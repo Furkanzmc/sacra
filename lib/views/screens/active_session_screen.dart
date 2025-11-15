@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+// removed unused math import
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -25,7 +25,7 @@ class _MountainHeightView extends StatefulWidget {
 }
 
 class _MountainHeightViewState extends State<_MountainHeightView> {
-  bool _dragging = false;
+  double? _pressOffsetFromCenterY;
 
   @override
   Widget build(BuildContext context) {
@@ -43,92 +43,154 @@ class _MountainHeightViewState extends State<_MountainHeightView> {
           // indicator line/dot
           LayoutBuilder(
             builder: (BuildContext context, BoxConstraints constraints) {
+              final BuildContext lbContext = context;
               final double h = constraints.maxHeight;
               const double apexFraction = 0.2; // keep in sync with painter apex
               final double apexY = h * apexFraction;
+              const double pointerVisualH = 12.0; // actual painted arrow height (fixed)
+              final double baseHalfVisual = pointerVisualH / 3; // triangle half-thickness
+              final double bottomSafe = h - (baseHalfVisual + 1.0); // ensure full triangle is visible above baseline
               final double clamped = (widget.heightMeters / (widget.maxHeightMeters == 0 ? 1 : widget.maxHeightMeters)).clamp(0.0, 1.0);
-              final double yUnclamped = h - (h * clamped);
-              final double y = yUnclamped < apexY ? apexY : yUnclamped;
-              return GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onVerticalDragStart: (DragStartDetails d) {
-                  if (widget.onChanged == null) return;
-                  final RenderBox box = context.findRenderObject() as RenderBox;
-                  final Offset local = box.globalToLocal(d.globalPosition);
-                  final double cx = constraints.maxWidth / 2;
-                  final double cy = y;
-                  final double dx = (local.dx - cx).abs();
-                  final double dy = (local.dy - cy).abs();
-                  // Accept drag only if the touch starts near the circle (24x24 hitbox)
-                  setState(() => _dragging = dx <= 12 && dy <= 12);
-                },
-                onVerticalDragUpdate: (DragUpdateDetails d) {
-                  if (!_dragging || widget.onChanged == null) return;
-                  final RenderBox box = context.findRenderObject() as RenderBox;
-                  final Offset local = box.globalToLocal(d.globalPosition);
-                  final double pos = (1 - (local.dy / h)).clamp(0.0, 1.0);
-                  final double cap = 1 - apexFraction; // max usable portion
-                  final double ratio = pos >= cap ? 1.0 : (pos / cap);
-                  widget.onChanged!(ratio * widget.maxHeightMeters);
-                },
-                onVerticalDragEnd: (_) => setState(() => _dragging = false),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: <Widget>[
-                    Positioned(
-                      left: constraints.maxWidth / 2 - 1,
-                      top: apexY,
-                      bottom: 6, // leave room for circle at bottom
-                      child: Container(width: 2, color: scheme.outlineVariant.withValues(alpha: 0.4)),
-                    ),
-                    // Value bubble anchored to circle's left; circle remains centered
-                    Positioned(
-                      top: y - 12,
-                      left: () {
-                        final String label = '${widget.heightMeters.toStringAsFixed(1)} m';
-                        final TextStyle style = Theme.of(context).textTheme.bodyMedium ?? const TextStyle(fontSize: 14);
-                        final TextPainter tp = TextPainter(
-                          text: TextSpan(text: label, style: style),
-                          textDirection: TextDirection.ltr,
-                          maxLines: 1,
-                        )..layout();
-                        final double bubbleWidth = tp.width + 24; // horizontal padding 12+12
-                        final double centerX = constraints.maxWidth / 2;
-                        const double radius = 6; // circle radius (12 size)
-                        const double gap = 8; // space between bubble and circle
-                        final double rowLeft = centerX - radius - gap - bubbleWidth; // circle center pinned to centerX
-                        return math.max(0.0, rowLeft);
-                      }(),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surface,
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+              final double centerX = constraints.maxWidth / 2;
+              const double pointerLength = 12.0; // horizontal length of pointer triangle
+              const double pointerHitWidth = 40.0; // wider hit target without changing visuals
+              const double pointerHitH = 40.0; // taller hit height so bottom is fully grabbable
+              return Stack(
+                clipBehavior: Clip.none,
+                children: <Widget>[
+                  Positioned(
+                    left: constraints.maxWidth / 2 - 1,
+                    top: apexY,
+                    bottom: 0,
+                    child: Container(width: 2, color: scheme.outlineVariant.withValues(alpha: 0.4)),
+                  ),
+                  // Painted triangular pointer; tip aligns exactly with mountain center line
+                  Positioned(
+                    top: () {
+                      final double tipY = apexY + (1 - clamped) * (bottomSafe - apexY);
+                      double top = tipY - (pointerHitH / 2);
+                      // Keep hitbox fully inside
+                      top = top.clamp(0.0, bottomSafe - pointerHitH);
+                      // Ensure the painted arrow (with baseHalf = pointerVisualH/3) fully fits inside the hitbox
+                      final double baseHalf = baseHalfVisual;
+                      final double margin = baseHalf + 1.0; // +1 px to avoid visual clipping
+                      double tipWithin = tipY - top;
+                      if (tipWithin < margin) {
+                        top = (tipY - margin).clamp(0.0, bottomSafe - pointerHitH);
+                      } else if (tipWithin > pointerHitH - margin) {
+                        top = (tipY - (pointerHitH - margin)).clamp(0.0, bottomSafe - pointerHitH);
+                      }
+                      return top;
+                    }(),
+                    // Place the hitbox so its right edge sits exactly on the center line
+                    left: centerX - pointerHitWidth,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onVerticalDragStart: (DragStartDetails d) {
+                        final RenderBox box = lbContext.findRenderObject() as RenderBox;
+                        final Offset local = box.globalToLocal(d.globalPosition);
+                        final double tipY = apexY + (1 - clamped) * (bottomSafe - apexY);
+                        setState(() {
+                          _pressOffsetFromCenterY = local.dy - tipY;
+                        });
+                      },
+                      onVerticalDragUpdate: (DragUpdateDetails d) {
+                        if (widget.onChanged == null) return;
+                        final RenderBox box = lbContext.findRenderObject() as RenderBox;
+                        final Offset local = box.globalToLocal(d.globalPosition);
+                        final double desiredTipY = (local.dy - (_pressOffsetFromCenterY ?? 0.0)).clamp(apexY, bottomSafe);
+                        final double ratio = (1 - ((desiredTipY - apexY) / (bottomSafe - apexY))).clamp(0.0, 1.0);
+                        widget.onChanged!(ratio * widget.maxHeightMeters);
+                      },
+                      onVerticalDragEnd: (_) {
+                        setState(() {
+                          _pressOffsetFromCenterY = null;
+                        });
+                      },
+                      child: Builder(
+                        builder: (BuildContext context) {
+                          // Recompute to supply painter with the tip position inside hitbox
+                          final double tipY = apexY + (1 - clamped) * (bottomSafe - apexY);
+                          final RenderBox? rb = context.findRenderObject() as RenderBox?;
+                          // Estimate top we set above (if rb not ready, fallback)
+                          double topEst = 0;
+                          if (rb != null) {
+                            final Offset off = rb.localToGlobal(Offset.zero) - (lbContext.findRenderObject() as RenderBox).localToGlobal(Offset.zero);
+                            topEst = off.dy;
+                          } else {
+                            double t = tipY - (pointerHitH / 2);
+                            if (t < 0) t = 0;
+                            final double maxTop = h - pointerHitH;
+                            if (t > maxTop) t = maxTop;
+                            topEst = t;
+                          }
+                          final double tipWithin = (tipY - topEst).clamp(0.0, pointerHitH - 1.0); // bias 1px from bottom to avoid clip
+                          return SizedBox(
+                            width: pointerHitWidth,
+                            height: pointerHitH,
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: SizedBox(
+                                width: pointerLength,
+                                height: pointerHitH,
+                                child: CustomPaint(
+                                  painter: _RightPointerPainter(color: scheme.primary, tipYWithin: tipWithin, visualHeight: pointerVisualH),
+                                ),
+                              ),
                             ),
-                            child: Text('${widget.heightMeters.toStringAsFixed(1)} m'),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            width: 12,
-                            height: 12,
-                            decoration: BoxDecoration(color: scheme.primary, shape: BoxShape.circle),
-                          ),
-                        ],
+                          );
+                        },
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               );
             },
           ),
-          // value bubble now positioned near the indicator; remove bottom-fixed label
+          // pointer is the only affordance; value displayed elsewhere in the card
         ],
       ),
     );
+  }
+}
+
+class _RightPointerPainter extends CustomPainter {
+  _RightPointerPainter({required this.color, this.tipYWithin, this.visualHeight});
+
+  final Color color;
+  final double? tipYWithin; // optional position of the tip within the given height, to center the triangle
+  final double? visualHeight; // optional fixed height for the triangle
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final Path path = Path();
+    // Draw a right-pointing isosceles triangle; tip at right edge
+    final double tipX = size.width;
+    final double tipY = (tipYWithin != null)
+        ? tipYWithin!.clamp(0.0, size.height)
+        : (size.height / 2);
+    final double baseX = 0;
+    final double h = visualHeight != null ? visualHeight!.clamp(2.0, size.height) : size.height;
+    final double baseHalf = h / 3; // slender pointer
+
+    final double topY = (tipY - baseHalf).clamp(0.0, size.height);
+    final double bottomY = (tipY + baseHalf).clamp(0.0, size.height);
+
+    path.moveTo(baseX, topY);
+    path.lineTo(baseX, bottomY);
+    path.lineTo(tipX, tipY);
+    path.close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _RightPointerPainter oldDelegate) {
+    return oldDelegate.color != color || oldDelegate.tipYWithin != tipYWithin || oldDelegate.visualHeight != visualHeight;
   }
 }
 
@@ -868,7 +930,12 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
                                       duration: const Duration(milliseconds: 300),
                                       opacity: _hintOpacity,
                                       child: Icon(Icons.chevron_right, size: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.36)),
-                                    ),
+                ),
+                if (widget.a is TopRopeAttempt) ...<Widget>[
+                  const SizedBox(width: AppSpacing.sm),
+                  Text('${(widget.a as TopRopeAttempt).heightMeters.toStringAsFixed(1)} m',
+                      style: Theme.of(context).textTheme.bodySmall),
+                ],
                                 ],
                               ),
                             ),
