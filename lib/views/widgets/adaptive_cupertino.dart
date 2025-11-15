@@ -31,12 +31,14 @@ class CupertinoAdaptiveCard extends StatelessWidget {
     required this.radius,
     this.padding,
     this.onTap,
+    this.color,
   });
 
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final VoidCallback? onTap;
   final double radius;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +48,7 @@ class CupertinoAdaptiveCard extends StatelessWidget {
     );
     final Widget card = DecoratedBox(
       decoration: BoxDecoration(
-        color: CupertinoColors.systemBackground.resolveFrom(context),
+        color: color ?? CupertinoColors.systemBackground.resolveFrom(context),
         borderRadius: BorderRadius.circular(radius),
         border: Border.all(color: CupertinoColors.separator.resolveFrom(context)),
       ),

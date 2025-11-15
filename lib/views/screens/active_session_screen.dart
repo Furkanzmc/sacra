@@ -149,8 +149,8 @@ class _MountainHeightViewState extends State<_MountainHeightView> {
           ),
           // pointer is the only affordance; value displayed elsewhere in the card
         ],
-      ),
-    );
+      
+    ));
   }
 }
 
@@ -232,6 +232,24 @@ IconData _adaptiveAddIcon() {
   return (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS)
       ? CupertinoIcons.add
       : Icons.add;
+}
+
+class _TypeColors {
+  const _TypeColors(this.container, this.onContainer, this.icon);
+  final Color container;
+  final Color onContainer;
+  final IconData icon;
+}
+
+_TypeColors _colorsForType(ClimbType t, ColorScheme scheme) {
+  switch (t) {
+    case ClimbType.bouldering:
+      return _TypeColors(scheme.secondaryContainer, scheme.onSecondaryContainer, Icons.terrain);
+    case ClimbType.topRope:
+      return _TypeColors(scheme.tertiaryContainer, scheme.onTertiaryContainer, Icons.safety_check);
+    case ClimbType.lead:
+      return _TypeColors(scheme.primaryContainer, scheme.onPrimaryContainer, Icons.route);
+  }
 }
 
 class ActiveSessionScreen extends ConsumerWidget {
@@ -555,8 +573,9 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -566,7 +585,7 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: <Widget>[
-              // Move notes button to top-left
+              // Notes toggle button (uses provider logic)
               _SessionNotesButton(),
               const Spacer(),
               if (widget.showEndAction)
@@ -585,9 +604,7 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
                   onPressed: () => setState(() => _editable = !_editable),
                   tooltip: _editable ? 'Disable editing' : 'Enable editing',
                   icon: Icon(
-                    defaultTargetPlatform == TargetPlatform.iOS
-                        ? (_editable ? CupertinoIcons.lock_open : CupertinoIcons.pencil)
-                        : (_editable ? Icons.lock_open : Icons.edit),
+                    defaultTargetPlatform == TargetPlatform.iOS ? CupertinoIcons.lock_open : Icons.lock_open,
                   ),
                 ),
             ],
@@ -658,8 +675,8 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
                 ),
               ],
             ),
-        ],
-      ),
+          ],
+        ),
     );
   }
 
@@ -849,10 +866,20 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
     }
 
     final bool hasNotes = ((widget.a.notes) ?? '').isNotEmpty;
+    final ClimbType tType = () {
+      if (widget.a is BoulderingAttempt) return ClimbType.bouldering;
+      if (widget.a is TopRopeAttempt) return ClimbType.topRope;
+      if (widget.a is LeadAttempt) return ClimbType.lead;
+      return ClimbType.bouldering;
+    }();
+    final _TypeColors tc = _colorsForType(tType, Theme.of(context).colorScheme);
 
     return AdaptiveCard(
       padding: const EdgeInsets.all(AppSpacing.md),
-      child: Column(
+      color: tc.container,
+      child: DefaultTextStyle.merge(
+        style: TextStyle(color: tc.onContainer),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           if (widget.a is BoulderingAttempt || widget.a is TopRopeAttempt || widget.a is LeadAttempt)
@@ -863,7 +890,7 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.12),
+                    color: tc.onContainer.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text('#${widget.number}'),
@@ -1095,7 +1122,7 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                color: tc.onContainer.withValues(alpha: 0.10),
                                 borderRadius: BorderRadius.circular(999),
                               ),
                               child: Row(
@@ -1105,7 +1132,7 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
                                     AnimatedOpacity(
                                       duration: const Duration(milliseconds: 300),
                                       opacity: _hintOpacity,
-                                      child: Icon(Icons.chevron_left, size: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.36)),
+                                      child: Icon(Icons.chevron_left, size: 14, color: tc.onContainer.withValues(alpha: 0.36)),
                                     ),
                                   Text('Attempt ${() {
                                       if (widget.a is BoulderingAttempt) return (widget.a as BoulderingAttempt).attemptNo.toString();
@@ -1117,12 +1144,14 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
                                     AnimatedOpacity(
                                       duration: const Duration(milliseconds: 300),
                                       opacity: _hintOpacity,
-                                      child: Icon(Icons.chevron_right, size: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.36)),
+                                      child: Icon(Icons.chevron_right, size: 14, color: tc.onContainer.withValues(alpha: 0.36)),
                 ),
                 if (widget.a is TopRopeAttempt || widget.a is LeadAttempt) ...<Widget>[
                   const SizedBox(width: AppSpacing.sm),
-                  Text('${(widget.a is TopRopeAttempt ? (widget.a as TopRopeAttempt).heightMeters : (widget.a as LeadAttempt).heightMeters).toStringAsFixed(1)} m',
-                      style: Theme.of(context).textTheme.bodySmall),
+                  Text(
+                    '${(widget.a is TopRopeAttempt ? (widget.a as TopRopeAttempt).heightMeters : (widget.a as LeadAttempt).heightMeters).toStringAsFixed(1)} m',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: tc.onContainer),
+                  ),
                 ],
                                 ],
                               ),
@@ -1208,6 +1237,7 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
           if ((widget.a is TopRopeAttempt || widget.a is LeadAttempt) && _showNotes)
             (widget.a is TopRopeAttempt) ? _RopedAttemptEditor(widget.a as TopRopeAttempt) : _LeadAttemptEditor(widget.a as LeadAttempt),
         ],
+      ),
       ),
     );
   }

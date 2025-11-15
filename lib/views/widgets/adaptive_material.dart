@@ -19,12 +19,13 @@ class MaterialAdaptiveScaffold extends StatelessWidget {
 }
 
 class MaterialAdaptiveCard extends StatelessWidget {
-  const MaterialAdaptiveCard({super.key, required this.child, required this.radius, this.padding, this.onTap});
+  const MaterialAdaptiveCard({super.key, required this.child, required this.radius, this.padding, this.onTap, this.color});
 
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final VoidCallback? onTap;
   final double radius;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +38,7 @@ class MaterialAdaptiveCard extends StatelessWidget {
       elevation: 2,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius)),
-      color: scheme.surfaceContainerHighest,
+      color: color ?? scheme.surfaceContainerHighest,
       child: materialChild,
     );
   }

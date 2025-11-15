@@ -87,6 +87,7 @@ class _HomeSessions extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final List<Session> all = ref.watch(sessionLogProvider).pastSessions;
+    final ColorScheme scheme = Theme.of(context).colorScheme;
     final List<Session> sessions = all
         .where((Session s) {
           final DateTime dt = s.endTime ?? s.startTime;
@@ -108,8 +109,10 @@ class _HomeSessions extends ConsumerWidget {
         final String date = adaptiveFormatDate(context, recorded);
         final String time = adaptiveFormatTime(context, recorded);
         final int count = s.attempts.length;
+        final _TypeColors tc = _colorsForType(s.climbType, scheme);
         return AdaptiveCard(
           padding: const EdgeInsets.all(AppSpacing.md),
+          color: tc.container,
           onTap: () {
             final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
             vm.editPastSession(s.id);
@@ -125,14 +128,26 @@ class _HomeSessions extends ConsumerWidget {
               }
             });
           },
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(_homeClimbTypeLabel(s.climbType), style: AppTextStyles.title),
-              const SizedBox(height: AppSpacing.sm),
-              Text('$date • $time'),
-              Text('$count routes'),
-            ],
+          child: DefaultTextStyle.merge(
+            style: TextStyle(color: tc.onContainer),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(_homeClimbTypeLabel(s.climbType),
+                    style: AppTextStyles.title.copyWith(color: tc.onContainer)),
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  children: <Widget>[
+                    Icon(tc.icon, size: 16, color: tc.onContainer),
+                    const SizedBox(width: 6),
+                    Text('$date • $time'),
+                    const Spacer(),
+                    _typeChip(context, s.climbType, tc),
+                  ],
+                ),
+                Text('$count routes'),
+              ],
+            ),
           ),
         );
       },
@@ -156,7 +171,6 @@ class _WeekHeader extends ConsumerWidget {
         children: <Widget>[
           IconButton(
             icon: const Icon(Icons.chevron_left),
-            tooltip: 'Previous week',
             onPressed: () {
               final DateTime curr = ref.read(_weekStartProvider);
               ref.read(_weekStartProvider.notifier).state =
@@ -174,7 +188,6 @@ class _WeekHeader extends ConsumerWidget {
           ),
           IconButton(
             icon: const Icon(Icons.chevron_right),
-            tooltip: 'Next week',
             onPressed: () {
               final DateTime curr = ref.read(_weekStartProvider);
               ref.read(_weekStartProvider.notifier).state =
@@ -187,6 +200,45 @@ class _WeekHeader extends ConsumerWidget {
   }
 }
 
+class _TypeColors {
+  const _TypeColors(this.container, this.onContainer, this.icon);
+  final Color container;
+  final Color onContainer;
+  final IconData icon;
+}
+
+_TypeColors _colorsForType(ClimbType t, ColorScheme scheme) {
+  switch (t) {
+    case ClimbType.bouldering:
+      return _TypeColors(scheme.secondaryContainer, scheme.onSecondaryContainer, Icons.terrain);
+    case ClimbType.topRope:
+      return _TypeColors(scheme.tertiaryContainer, scheme.onTertiaryContainer, Icons.safety_check);
+    case ClimbType.lead:
+      return _TypeColors(scheme.primaryContainer, scheme.onPrimaryContainer, Icons.route);
+  }
+}
+
+Widget _typeChip(BuildContext context, ClimbType t, _TypeColors tc) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: tc.onContainer.withOpacity(0.08),
+      borderRadius: BorderRadius.circular(999),
+      border: Border.all(color: tc.onContainer.withOpacity(0.2)),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Icon(tc.icon, size: 14, color: tc.onContainer),
+        const SizedBox(width: 4),
+        Text(
+          _homeClimbTypeLabel(t),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: tc.onContainer, fontWeight: FontWeight.w600),
+        ),
+      ],
+    ),
+  );
+}
 class _WeeklyRingsCard extends ConsumerWidget {
   const _WeeklyRingsCard({required this.weekStart});
   final DateTime weekStart;
@@ -237,9 +289,9 @@ class _WeeklyRingsCard extends ConsumerWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: <Widget>[
-                      _pill(context, 'Bouldering $boulder'),
-                      _pill(context, 'Top Rope $ropeTop'),
-                      _pill(context, 'Lead $ropeLead'),
+                      _pillForType(context, ClimbType.bouldering, 'Bouldering $boulder'),
+                      _pillForType(context, ClimbType.topRope, 'Top Rope $ropeTop'),
+                      _pillForType(context, ClimbType.lead, 'Lead $ropeLead'),
                       _pill(context, 'Goal $total / $weeklyGoal', icon: Icons.flag),
                     ],
                   ),
@@ -311,6 +363,33 @@ Widget _pill(BuildContext context, String text, {IconData? icon}) {
           text,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: icon == Icons.flag ? scheme.onTertiaryContainer : scheme.onSecondaryContainer,
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _pillForType(BuildContext context, ClimbType type, String text) {
+  final ColorScheme scheme = Theme.of(context).colorScheme;
+  final _TypeColors tc = _colorsForType(type, scheme);
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(
+      color: tc.container,
+      borderRadius: BorderRadius.circular(999),
+      border: Border.all(color: tc.onContainer.withOpacity(0.2)),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Icon(tc.icon, size: 14, color: tc.onContainer),
+        const SizedBox(width: 6),
+        Text(
+          text,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: tc.onContainer,
                 fontWeight: FontWeight.w600,
               ),
         ),

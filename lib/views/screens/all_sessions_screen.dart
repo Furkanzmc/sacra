@@ -45,10 +45,13 @@ class AllSessionsScreen extends ConsumerWidget {
                   final DateTime recorded = s.endTime ?? s.startTime;
                   final String time = adaptiveFormatTime(context, recorded);
                   final int count = s.attempts.length;
+                  final ColorScheme scheme = Theme.of(context).colorScheme;
+                  final _TypeColors tc = _colorsForType(s.climbType, scheme);
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: AdaptiveCard(
                       padding: const EdgeInsets.all(AppSpacing.md),
+                      color: tc.container,
                       onTap: () {
                         final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
                         vm.editPastSession(s.id);
@@ -58,20 +61,29 @@ class AllSessionsScreen extends ConsumerWidget {
                           );
                         });
                       },
-                      child: Row(
-                        children: <Widget>[
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Text(_homeClimbTypeLabel(s.climbType), style: AppTextStyles.title),
-                                const SizedBox(height: 4),
-                                Text('$time • $count routes'),
-                              ],
+                      child: DefaultTypography(
+                        color: tc.onContainer,
+                        child: Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Text(_homeClimbTypeLabel(s.climbType), style: AppTextStyles.title.copyWith(color: tc.onContainer)),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: <void>[
+                                      Icon(tc.icon, size: 14, color: tc.onContainer),
+                                      const SizedBox(width: 6),
+                                      Text('$time • $count routes'),
+                                    ] as List<Widget>,
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const Icon(Icons.chevron_right),
-                        ],
+                            Icon(Icons.chevron_right, color: tc.onContainer),
+                          ],
+                        ),
                       ),
                     ),
                   );
@@ -93,6 +105,38 @@ String _homeClimbTypeLabel(ClimbType t) {
       return 'Top Rope';
     case ClimbType.lead:
       return 'Leading';
+  }
+}
+
+class _TypeColors {
+  const _TypeColors(this.container, this.onContainer, this.icon);
+  final Color container;
+  final Color onContainer;
+  final IconData icon;
+}
+
+_TypeColors _colorsForType(ClimbType t, ColorScheme scheme) {
+  switch (t) {
+    case ClimbType.bouldering:
+      return _TypeColors(scheme.secondaryContainer, scheme.onSecondaryContainer, Icons.terrain);
+    case ClimbType.topRope:
+      return _TypeColors(scheme.tertiaryContainer, scheme.onTertiaryContainer, Icons.safety_check);
+    case ClimbType.lead:
+      return _TypeColors(scheme.primaryContainer, scheme.onPrimaryContainer, Icons.route);
+  }
+}
+
+class DefaultTypography extends StatelessWidget {
+  const DefaultTypography({super.key, required this.child, this.color});
+  final Widget child;
+  final Color? color;
+  @override
+  Widget build(BuildContext context) {
+    final TextStyle? base = Theme.of(context).textTheme.bodyMedium;
+    return DefaultTextStyle.merge(
+      style: (base ?? const TextStyle()).copyWith(color: color ?? base?.color),
+      child: child,
+    );
   }
 }
 

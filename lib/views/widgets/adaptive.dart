@@ -70,21 +70,35 @@ class AdaptiveCard extends StatelessWidget {
     this.padding,
     this.onTap,
     this.borderRadius,
+    this.color,
   });
 
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final VoidCallback? onTap;
   final double? borderRadius;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
     final double base = _isCupertinoPlatform ? kCardBaseRadiusCupertino : kCardBaseRadiusMaterial;
     final double r = (borderRadius ?? base) * kCardCornerRadiusScale;
     if (_isCupertinoPlatform) {
-      return cu.CupertinoAdaptiveCard(radius: r, padding: padding, onTap: onTap, child: child);
+      return cu.CupertinoAdaptiveCard(
+        radius: r,
+        padding: padding,
+        onTap: onTap,
+        child: child,
+        color: color,
+      );
     }
-    return mt.MaterialAdaptiveCard(radius: r, padding: padding, onTap: onTap, child: child);
+    return mt.MaterialAdaptiveCard(
+      radius: r,
+      padding: padding,
+      onTap: onTap,
+      child: child,
+      color: color,
+    );
   }
 }
 
