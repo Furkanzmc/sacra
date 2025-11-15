@@ -400,6 +400,7 @@ class _ActiveBody extends ConsumerWidget {
       if (st.editingSession?.id == session.id) return st.editingSession!;
       return session;
     }();
+    final bool isEditingPast = !isActive; // this widget always has a non-null session
     return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -416,10 +417,18 @@ class _ActiveBody extends ConsumerWidget {
           const SizedBox(height: AppSpacing.md),
         SafeArea(
           top: false,
-          child: _TypeAwareAttemptComposer(
-            type: displaySession.climbType,
-            onAdd: vm.addAttempt,
-            readOnly: !isActive,
+          child: WillPopScope(
+            onWillPop: () async {
+              if (isEditingPast) {
+                vm.saveActiveSessionEdits();
+              }
+              return true;
+            },
+            child: _TypeAwareAttemptComposer(
+              type: displaySession.climbType,
+              onAdd: vm.addAttempt,
+              readOnly: !isActive,
+            ),
           ),
         ),
       ],
