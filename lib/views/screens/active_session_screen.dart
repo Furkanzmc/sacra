@@ -385,8 +385,7 @@ class _ActiveBody extends ConsumerWidget {
           style: AppTextStyles.body,
         ),
         const SizedBox(height: AppSpacing.sm),
-        const _SessionNotesField(),
-        const SizedBox(height: AppSpacing.sm),
+        // Notes field moved into the action area below.
         Expanded(
           child: _AttemptsList(attempts: displaySession.attempts),
         ),
@@ -562,6 +561,9 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          // Notes field now lives inside the action area for all activity types.
+          const _SessionNotesField(),
+          const SizedBox(height: AppSpacing.sm),
           Row(
             children: <Widget>[
               // Move notes button to top-left
