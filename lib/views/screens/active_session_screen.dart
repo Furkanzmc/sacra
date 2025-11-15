@@ -245,9 +245,24 @@ class ActiveSessionScreen extends ConsumerWidget {
     final Session? effectiveSession = session ?? state.activeSession;
     final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
 
+    // Compute friendly title and optional highest grade (bouldering)
+    String displayType;
+    switch (effectiveSession?.climbType) {
+      case ClimbType.bouldering:
+        displayType = 'Bouldering';
+        break;
+      case ClimbType.topRope:
+        displayType = 'Top rope';
+        break;
+      case ClimbType.lead:
+        displayType = 'Lead';
+        break;
+      default:
+        displayType = 'Session';
+    }
     return AdaptiveScaffold(
       title: Text(
-        effectiveSession == null ? 'Active Session' : 'Active: ${effectiveSession.climbType.name}',
+        effectiveSession == null ? 'Active Session' : 'Active: $displayType',
         style: AppTextStyles.title,
       ),
       actions: (session != null)
@@ -493,7 +508,7 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text('Add Attempt (${widget.type.name})'),
+          const Text('Add Attempt'),
           const SizedBox(height: AppSpacing.sm),
           if (widget.type == ClimbType.bouldering)
             VGradePopupScrubber(
@@ -658,6 +673,9 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
   late bool _showNotes = ((widget.a.notes) ?? '').isNotEmpty;
   bool _showHeight = false;
   bool? _sentLocal;
+  bool? _completedLocal;
+  bool? _ropeSentLocal;
+  bool? _ropeCompletedLocal;
   double? _attemptDragStartX;
   double _attemptDragProgress = 0; // 0..1
   int _attemptDragDir = 0; // -1 left, 1 right, 0 none
@@ -669,6 +687,13 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
     super.initState();
     if (widget.a is BoulderingAttempt) {
       _sentLocal = (widget.a as BoulderingAttempt).sent;
+      _completedLocal = (widget.a as BoulderingAttempt).isCompleted;
+    } else if (widget.a is TopRopeAttempt) {
+      _ropeSentLocal = (widget.a as TopRopeAttempt).isSent;
+      _ropeCompletedLocal = (widget.a as TopRopeAttempt).completed;
+    } else if (widget.a is LeadAttempt) {
+      _ropeSentLocal = (widget.a as LeadAttempt).isSent;
+      _ropeCompletedLocal = (widget.a as LeadAttempt).completed;
     }
     // One-shot hint pulse on Material platforms
     if (defaultTargetPlatform != TargetPlatform.iOS) {
@@ -692,8 +717,21 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
     super.didUpdateWidget(oldWidget);
     if (widget.a is BoulderingAttempt) {
       _sentLocal = (widget.a as BoulderingAttempt).sent;
+      _completedLocal = (widget.a as BoulderingAttempt).isCompleted;
+      _ropeSentLocal = null;
+      _ropeCompletedLocal = null;
     } else {
       _sentLocal = null;
+      if (widget.a is TopRopeAttempt) {
+        _ropeSentLocal = (widget.a as TopRopeAttempt).isSent;
+        _ropeCompletedLocal = (widget.a as TopRopeAttempt).completed;
+      } else if (widget.a is LeadAttempt) {
+        _ropeSentLocal = (widget.a as LeadAttempt).isSent;
+        _ropeCompletedLocal = (widget.a as LeadAttempt).completed;
+      } else {
+        _ropeSentLocal = null;
+        _ropeCompletedLocal = null;
+      }
     }
   }
 
@@ -745,14 +783,23 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
                       final bool next = !(_sentLocal ?? b.sent);
                       setState(() => _sentLocal = next);
                       vm.updateBoulderAttemptSent(b.id, next);
+                      if (next) {
+                        _completedLocal = true;
+                        vm.updateBoulderAttemptCompleted(b.id, true);
+                      }
                     } else if (widget.a is TopRopeAttempt) {
                       final TopRopeAttempt t = widget.a as TopRopeAttempt;
-                      vm.updateTopRopeAttemptSent(t.id, !(t.isSent));
+                      final bool next = !(_ropeSentLocal ?? t.isSent);
+                      setState(() => _ropeSentLocal = next);
+                      vm.updateTopRopeAttemptSent(t.id, next);
                     } else if (widget.a is LeadAttempt) {
                       final LeadAttempt l = widget.a as LeadAttempt;
-                      vm.updateLeadAttemptSent(l.id, !(l.isSent));
+                      final bool next = !(_ropeSentLocal ?? l.isSent);
+                      setState(() => _ropeSentLocal = next);
+                      vm.updateLeadAttemptSent(l.id, next);
                     }
                   },
+                  tooltip: (widget.a is BoulderingAttempt) ? 'Flashed' : 'Sent',
                   icon: Icon(
                     () {
                       if (widget.a is BoulderingAttempt) {
@@ -763,10 +810,10 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
                       }
                       // Rope uses a flag icon for Sent
                       return defaultTargetPlatform == TargetPlatform.iOS
-                          ? (((widget.a is TopRopeAttempt ? (widget.a as TopRopeAttempt).isSent : (widget.a as LeadAttempt).isSent))
+                          ? (((widget.a is TopRopeAttempt ? (_ropeSentLocal ?? (widget.a as TopRopeAttempt).isSent) : (_ropeSentLocal ?? (widget.a as LeadAttempt).isSent)))
                               ? CupertinoIcons.flag_fill
                               : CupertinoIcons.flag)
-                          : (((widget.a is TopRopeAttempt ? (widget.a as TopRopeAttempt).isSent : (widget.a as LeadAttempt).isSent))
+                          : (((widget.a is TopRopeAttempt ? (_ropeSentLocal ?? (widget.a as TopRopeAttempt).isSent) : (_ropeSentLocal ?? (widget.a as LeadAttempt).isSent)))
                               ? Icons.flag
                               : Icons.outlined_flag);
                     }(),
@@ -775,9 +822,9 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
                         return (_sentLocal ?? (widget.a as BoulderingAttempt).sent) ? Theme.of(context).colorScheme.primary : null;
                       }
                       if (widget.a is TopRopeAttempt) {
-                        return (widget.a as TopRopeAttempt).isSent ? Theme.of(context).colorScheme.primary : null;
+                        return ((_ropeSentLocal ?? (widget.a as TopRopeAttempt).isSent)) ? Theme.of(context).colorScheme.primary : null;
                       }
-                      return (widget.a as LeadAttempt).isSent ? Theme.of(context).colorScheme.primary : null;
+                      return ((_ropeSentLocal ?? (widget.a as LeadAttempt).isSent)) ? Theme.of(context).colorScheme.primary : null;
                     }(),
                   ),
                 ),
@@ -786,13 +833,16 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
                     onPressed: () {
                       final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
                       final BoulderingAttempt b = widget.a as BoulderingAttempt;
-                      vm.updateBoulderAttemptCompleted(b.id, !(b.isCompleted));
+                      final bool next = !(_completedLocal ?? b.isCompleted);
+                      setState(() => _completedLocal = next);
+                      vm.updateBoulderAttemptCompleted(b.id, next);
                     },
+                    tooltip: 'Completed',
                     icon: Icon(
                       defaultTargetPlatform == TargetPlatform.iOS
-                          ? (((widget.a as BoulderingAttempt).isCompleted) ? CupertinoIcons.check_mark_circled_solid : CupertinoIcons.check_mark_circled)
-                          : (((widget.a as BoulderingAttempt).isCompleted) ? Icons.check_circle : Icons.check_circle_outline),
-                      color: ((widget.a as BoulderingAttempt).isCompleted) ? Theme.of(context).colorScheme.primary : null,
+                          ? (((_completedLocal ?? (widget.a as BoulderingAttempt).isCompleted)) ? CupertinoIcons.check_mark_circled_solid : CupertinoIcons.check_mark_circled)
+                          : (((_completedLocal ?? (widget.a as BoulderingAttempt).isCompleted)) ? Icons.check_circle : Icons.check_circle_outline),
+                      color: ((_completedLocal ?? (widget.a as BoulderingAttempt).isCompleted)) ? Theme.of(context).colorScheme.primary : null,
                     ),
                   ),
                 if (widget.a is TopRopeAttempt || widget.a is LeadAttempt)
@@ -801,21 +851,26 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
                       final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
                       if (widget.a is TopRopeAttempt) {
                         final TopRopeAttempt t = widget.a as TopRopeAttempt;
-                        vm.updateTopRopeAttemptCompleted(t.id, !t.completed);
+                        final bool next = !(_ropeCompletedLocal ?? t.completed);
+                        setState(() => _ropeCompletedLocal = next);
+                        vm.updateTopRopeAttemptCompleted(t.id, next);
                       } else {
                         final LeadAttempt l = widget.a as LeadAttempt;
-                        vm.updateLeadAttemptCompleted(l.id, !l.completed);
+                        final bool next = !(_ropeCompletedLocal ?? l.completed);
+                        setState(() => _ropeCompletedLocal = next);
+                        vm.updateLeadAttemptCompleted(l.id, next);
                       }
                     },
+                    tooltip: 'Completed',
                     icon: Icon(
                       defaultTargetPlatform == TargetPlatform.iOS
-                          ? (((widget.a is TopRopeAttempt ? (widget.a as TopRopeAttempt).completed : (widget.a as LeadAttempt).completed))
+                          ? (((widget.a is TopRopeAttempt ? (_ropeCompletedLocal ?? (widget.a as TopRopeAttempt).completed) : (_ropeCompletedLocal ?? (widget.a as LeadAttempt).completed)))
                               ? CupertinoIcons.check_mark_circled_solid
                               : CupertinoIcons.check_mark_circled)
-                          : (((widget.a is TopRopeAttempt ? (widget.a as TopRopeAttempt).completed : (widget.a as LeadAttempt).completed))
+                          : (((widget.a is TopRopeAttempt ? (_ropeCompletedLocal ?? (widget.a as TopRopeAttempt).completed) : (_ropeCompletedLocal ?? (widget.a as LeadAttempt).completed)))
                               ? Icons.check_circle
                               : Icons.check_circle_outline),
-                      color: ((widget.a is TopRopeAttempt ? (widget.a as TopRopeAttempt).completed : (widget.a as LeadAttempt).completed))
+                      color: ((widget.a is TopRopeAttempt ? (_ropeCompletedLocal ?? (widget.a as TopRopeAttempt).completed) : (_ropeCompletedLocal ?? (widget.a as LeadAttempt).completed)))
                           ? Theme.of(context).colorScheme.primary
                           : null,
                     ),
@@ -826,16 +881,26 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
           Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              // Title first on second row
-              Text(() {
-                if (widget.a is BoulderingAttempt) return title;
-                if (widget.a is TopRopeAttempt) return (widget.a as TopRopeAttempt).grade.value;
-                if (widget.a is LeadAttempt) return (widget.a as LeadAttempt).grade.value;
-                return title;
-              }()),
-              if (widget.a is BoulderingAttempt || widget.a is TopRopeAttempt || widget.a is LeadAttempt) ...<Widget>[
-                const SizedBox(width: AppSpacing.sm),
-                GestureDetector(
+              // Left-aligned difficulty + attempt pill using Wrap so the chip wraps under the title aligned to left.
+              Expanded(
+                child: Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.xs,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: <Widget>[
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: DefaultTextStyle.merge(
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                        child: Text(() {
+                          if (widget.a is BoulderingAttempt) return title;
+                          if (widget.a is TopRopeAttempt) return (widget.a as TopRopeAttempt).grade.value;
+                          if (widget.a is LeadAttempt) return (widget.a as LeadAttempt).grade.value;
+                          return title;
+                        }()),
+                      ),
+                    ),
+                    GestureDetector(
                   onTapDown: (TapDownDetails d) {
                     if (defaultTargetPlatform == TargetPlatform.iOS) return;
                     final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
@@ -985,8 +1050,10 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
                     },
                   ),
                 ),
-              ],
-              const Spacer(),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
               if (widget.a is TopRopeAttempt)
                 _HeightToggleButton(attempt: widget.a as TopRopeAttempt, visible: showHeight, onToggle: () => setState(() => _showHeight = !_showHeight)),
               if (widget.a is LeadAttempt)

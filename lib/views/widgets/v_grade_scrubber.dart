@@ -24,6 +24,10 @@ class _VGradePopupScrubberState extends State<VGradePopupScrubber> {
   // Track selections to promote shortcuts after repeated picks
   final Map<String, int> _counts = <String, int>{};
   final List<String> _shortcuts = <String>[];
+  final ScrollController _mainCtrl = ScrollController();
+  final ScrollController _shortCtrl = ScrollController();
+  bool _mainShowLeft = false, _mainShowRight = false;
+  bool _shortShowLeft = false, _shortShowRight = false;
 
   List<String> get _grades => widget.grades ?? _defaultVGrades;
 
@@ -34,33 +38,36 @@ class _VGradePopupScrubberState extends State<VGradePopupScrubber> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: _grades
-                          .map((String g) => Padding(
-                                padding: const EdgeInsets.only(right: 8, bottom: 8),
-                                child: _Segment(
-                                  label: g,
-                                  onPressed: () => _onPick(g),
-                                ),
-                              ))
-                          .toList(),
-                    ),
-                  ),
-                ),
-                if (widget.trailing != null) ...<Widget>[
-                  const SizedBox(width: 8),
-                  widget.trailing!,
-                ],
-              ],
+            _ScrollableShadowRow(
+              controller: _mainCtrl,
+              showLeft: _mainShowLeft,
+              showRight: _mainShowRight,
+              onMetrics: (bool left, bool right) => setState(() {
+                _mainShowLeft = left;
+                _mainShowRight = right;
+              }),
+              child: Row(
+                children: _grades
+                    .map((String g) => Padding(
+                          padding: const EdgeInsets.only(right: 8, bottom: 8),
+                          child: _Segment(
+                            label: g,
+                            onPressed: () => _onPick(g),
+                          ),
+                        ))
+                    .toList(),
+              ),
+              trailing: widget.trailing,
             ),
             if (_shortcuts.isNotEmpty)
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
+              _ScrollableShadowRow(
+                controller: _shortCtrl,
+                showLeft: _shortShowLeft,
+                showRight: _shortShowRight,
+                onMetrics: (bool left, bool right) => setState(() {
+                  _shortShowLeft = left;
+                  _shortShowRight = right;
+                }),
                 child: Row(
                   children: _shortcuts
                       .map((String g) => Padding(
@@ -110,6 +117,10 @@ class YdsGradePopupScrubber extends StatefulWidget {
 class _YdsGradePopupScrubberState extends State<YdsGradePopupScrubber> {
   final Map<String, int> _counts = <String, int>{};
   final List<String> _shortcuts = <String>[];
+  final ScrollController _mainCtrl = ScrollController();
+  final ScrollController _shortCtrl = ScrollController();
+  bool _mainShowLeft = false, _mainShowRight = false;
+  bool _shortShowLeft = false, _shortShowRight = false;
 
   List<String> get _grades => widget.grades ?? _defaultYdsGrades;
 
@@ -120,33 +131,36 @@ class _YdsGradePopupScrubberState extends State<YdsGradePopupScrubber> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: _grades
-                          .map((String g) => Padding(
-                                padding: const EdgeInsets.only(right: 8, bottom: 8),
-                                child: _Segment(
-                                  label: g,
-                                  onPressed: () => _onPick(g),
-                                ),
-                              ))
-                          .toList(),
-                    ),
-                  ),
-                ),
-                if (widget.trailing != null) ...<Widget>[
-                  const SizedBox(width: 8),
-                  widget.trailing!,
-                ],
-              ],
+            _ScrollableShadowRow(
+              controller: _mainCtrl,
+              showLeft: _mainShowLeft,
+              showRight: _mainShowRight,
+              onMetrics: (bool left, bool right) => setState(() {
+                _mainShowLeft = left;
+                _mainShowRight = right;
+              }),
+              child: Row(
+                children: _grades
+                    .map((String g) => Padding(
+                          padding: const EdgeInsets.only(right: 8, bottom: 8),
+                          child: _Segment(
+                            label: g,
+                            onPressed: () => _onPick(g),
+                          ),
+                        ))
+                    .toList(),
+              ),
+              trailing: widget.trailing,
             ),
             if (_shortcuts.isNotEmpty)
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
+              _ScrollableShadowRow(
+                controller: _shortCtrl,
+                showLeft: _shortShowLeft,
+                showRight: _shortShowRight,
+                onMetrics: (bool left, bool right) => setState(() {
+                  _shortShowLeft = left;
+                  _shortShowRight = right;
+                }),
                 child: Row(
                   children: _shortcuts
                       .map((String g) => Padding(
@@ -230,6 +244,122 @@ class _Segment extends StatelessWidget {
           ),
           child: Text(label),
         ),
+      ),
+    );
+  }
+}
+
+class _ScrollableShadowRow extends StatefulWidget {
+  const _ScrollableShadowRow({
+    required this.controller,
+    required this.child,
+    this.trailing,
+    required this.showLeft,
+    required this.showRight,
+    required this.onMetrics,
+  });
+
+  final ScrollController controller;
+  final Widget child;
+  final Widget? trailing;
+  final bool showLeft;
+  final bool showRight;
+  final void Function(bool showLeft, bool showRight) onMetrics;
+
+  @override
+  State<_ScrollableShadowRow> createState() => _ScrollableShadowRowState();
+}
+
+class _ScrollableShadowRowState extends State<_ScrollableShadowRow> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_update);
+    // schedule after layout
+    WidgetsBinding.instance.addPostFrameCallback((_) => _update());
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_update);
+    super.dispose();
+  }
+
+  void _update() {
+    final ScrollPosition? p = widget.controller.hasClients ? widget.controller.position : null;
+    if (p == null) return;
+    final bool left = p.pixels > 0;
+    final bool right = p.pixels < p.maxScrollExtent;
+    widget.onMetrics(left, right);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      height: 56,
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Stack(
+              children: <Widget>[
+                Positioned.fill(
+                  child: SingleChildScrollView(
+                    controller: widget.controller,
+                    scrollDirection: Axis.horizontal,
+                    child: widget.child,
+                  ),
+                ),
+                if (widget.showLeft)
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: 24,
+                    child: IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: <Color>[
+                              scheme.shadow.withValues(alpha: 0.08),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                if (widget.showRight)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: 24,
+                    child: IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.centerRight,
+                            end: Alignment.centerLeft,
+                            colors: <Color>[
+                              scheme.shadow.withValues(alpha: 0.08),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (widget.trailing != null) ...<Widget>[
+            const SizedBox(width: 8),
+            widget.trailing!,
+          ],
+        ],
       ),
     );
   }
