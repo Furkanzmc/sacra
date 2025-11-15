@@ -11,6 +11,16 @@ import '../theme/app_theme.dart';
 import '../widgets/responsive.dart';
 import 'active_session_screen.dart';
 import '../widgets/adaptive.dart';
+String _climbTypeLabel(ClimbType t) {
+  switch (t) {
+    case ClimbType.bouldering:
+      return 'Bouldering';
+    case ClimbType.topRope:
+      return 'Top Rope';
+    case ClimbType.lead:
+      return 'Leading';
+  }
+}
 IconData _adaptivePlayIcon() {
   return (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS)
       ? CupertinoIcons.play_fill
@@ -97,7 +107,7 @@ class _ActiveSessionButton extends ConsumerWidget {
         );
       },
       icon: Icon(_adaptivePlayIcon()),
-      label: Text('Resume ${session.climbType.name} session'),
+      label: Text('Resume ${_climbTypeLabel(session.climbType)} session'),
     );
   }
 }
@@ -150,7 +160,7 @@ class _PastSessionsList extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
               Text(
-                s.climbType.name,
+                _climbTypeLabel(s.climbType),
                 style: AppTextStyles.title,
               ),
               const SizedBox(height: AppSpacing.sm),

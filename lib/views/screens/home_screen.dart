@@ -8,6 +8,18 @@ import '../theme/app_theme.dart';
 // importing session_log_screen for consistency; replicate list inline to avoid private symbol issues
 import 'active_session_screen.dart';
 import '../../models/session.dart';
+import '../../models/activity.dart';
+
+String _homeClimbTypeLabel(ClimbType t) {
+  switch (t) {
+    case ClimbType.bouldering:
+      return 'Bouldering';
+    case ClimbType.topRope:
+      return 'Top Rope';
+    case ClimbType.lead:
+      return 'Leading';
+  }
+}
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -111,7 +123,7 @@ class _ProxyPastSessionsList extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
               Text(
-                s.climbType.name,
+                _homeClimbTypeLabel(s.climbType),
                 style: AppTextStyles.title,
               ),
               const SizedBox(height: AppSpacing.sm),
