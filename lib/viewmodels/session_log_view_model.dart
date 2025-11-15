@@ -332,6 +332,126 @@ class SessionLogViewModel extends Notifier<SessionLogState> {
     }
   }
 
+  void updateLeadAttemptCompleted(String attemptId, bool completed) {
+    if (state.activeSession != null) {
+      final Session current = state.activeSession!;
+      final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
+        if (a is LeadAttempt && a.id == attemptId) {
+          return a.copyWith(completed: completed, sent: completed);
+        }
+        return a;
+      }).toList();
+      state = state.copyWith(activeSession: current.copyWith(attempts: next));
+      return;
+    }
+    if (state.editingSession != null) {
+      final Session current = state.editingSession!;
+      final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
+        if (a is LeadAttempt && a.id == attemptId) {
+          return a.copyWith(completed: completed, sent: completed);
+        }
+        return a;
+      }).toList();
+      state = state.copyWith(editingSession: current.copyWith(attempts: next));
+    }
+  }
+
+  void updateLeadAttemptNotes(String attemptId, String? notes) {
+    if (state.activeSession != null) {
+      final Session current = state.activeSession!;
+      final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
+        if (a is LeadAttempt && a.id == attemptId) {
+          return a.copyWith(notes: notes);
+        }
+        return a;
+      }).toList();
+      state = state.copyWith(activeSession: current.copyWith(attempts: next));
+      return;
+    }
+    if (state.editingSession != null) {
+      final Session current = state.editingSession!;
+      final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
+        if (a is LeadAttempt && a.id == attemptId) {
+          return a.copyWith(notes: notes);
+        }
+        return a;
+      }).toList();
+      state = state.copyWith(editingSession: current.copyWith(attempts: next));
+    }
+  }
+
+  void updateLeadAttemptHeight(String attemptId, double heightMeters) {
+    if (state.activeSession != null) {
+      final Session current = state.activeSession!;
+      final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
+        if (a is LeadAttempt && a.id == attemptId) {
+          return a.copyWith(heightMeters: heightMeters);
+        }
+        return a;
+      }).toList();
+      state = state.copyWith(activeSession: current.copyWith(attempts: next));
+      return;
+    }
+    if (state.editingSession != null) {
+      final Session current = state.editingSession!;
+      final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
+        if (a is LeadAttempt && a.id == attemptId) {
+          return a.copyWith(heightMeters: heightMeters);
+        }
+        return a;
+      }).toList();
+      state = state.copyWith(editingSession: current.copyWith(attempts: next));
+    }
+  }
+
+  void updateLeadAttemptNumber(String attemptId, int attemptNumber) {
+    if (state.activeSession != null) {
+      final Session current = state.activeSession!;
+      final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
+        if (a is LeadAttempt && a.id == attemptId) {
+          return a.copyWith(attemptNumber: attemptNumber);
+        }
+        return a;
+      }).toList();
+      state = state.copyWith(activeSession: current.copyWith(attempts: next));
+      return;
+    }
+    if (state.editingSession != null) {
+      final Session current = state.editingSession!;
+      final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
+        if (a is LeadAttempt && a.id == attemptId) {
+          return a.copyWith(attemptNumber: attemptNumber);
+        }
+        return a;
+      }).toList();
+      state = state.copyWith(editingSession: current.copyWith(attempts: next));
+    }
+  }
+
+  void updateLeadAttemptSent(String attemptId, bool sent) {
+    if (state.activeSession != null) {
+      final Session current = state.activeSession!;
+      final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
+        if (a is LeadAttempt && a.id == attemptId) {
+          return a.copyWith(sent: sent);
+        }
+        return a;
+      }).toList();
+      state = state.copyWith(activeSession: current.copyWith(attempts: next));
+      return;
+    }
+    if (state.editingSession != null) {
+      final Session current = state.editingSession!;
+      final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
+        if (a is LeadAttempt && a.id == attemptId) {
+          return a.copyWith(sent: sent);
+        }
+        return a;
+      }).toList();
+      state = state.copyWith(editingSession: current.copyWith(attempts: next));
+    }
+  }
+
   void updateSessionNotes(String? notes) {
     if (state.activeSession != null) {
       final Session s = state.activeSession!;

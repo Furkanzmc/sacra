@@ -25,6 +25,7 @@ class _VGradePopupScrubberState extends State<VGradePopupScrubber> {
   OverlayEntry? _entry;
   ValueNotifier<int>? _indexNotifier;
   double? _popupTop;
+  // ignore: unused_field
   double? _popupLeft; // reserved for future horizontal placement tweaks
   static const double _itemHeight = 36;
   static const double _popupWidth = 140;
@@ -81,10 +82,7 @@ class _VGradePopupScrubberState extends State<VGradePopupScrubber> {
   
 
   void _showOverlay(BuildContext context, Offset globalPos) {
-    final OverlayState? overlay = Overlay.of(context);
-    if (overlay == null) {
-      return;
-    }
+    final OverlayState overlay = Overlay.of(context);
 
     // Compute popup placement near the press position.
     final Size screen = MediaQuery.of(context).size;
@@ -181,6 +179,7 @@ class _YdsGradePopupScrubberState extends State<YdsGradePopupScrubber> {
   OverlayEntry? _entry;
   ValueNotifier<int>? _indexNotifier;
   double? _popupTop;
+  // ignore: unused_field
   double? _popupLeft; // reserved for future horizontal placement tweaks
   static const double _itemHeight = 36;
   static const double _popupWidth = 160;
@@ -235,10 +234,7 @@ class _YdsGradePopupScrubberState extends State<YdsGradePopupScrubber> {
   }
 
   void _showOverlay(BuildContext context, Offset globalPos) {
-    final OverlayState? overlay = Overlay.of(context);
-    if (overlay == null) {
-      return;
-    }
+    final OverlayState overlay = Overlay.of(context);
     final Size screen = MediaQuery.of(context).size;
     final double totalHeight = _itemHeight * _grades.length;
     final double margin = 12;
@@ -437,7 +433,7 @@ class _GradePopup extends StatelessWidget {
 }
 
 class _Segment extends StatelessWidget {
-  const _Segment({super.key, required this.label, required this.onPressed});
+  const _Segment({required this.label, required this.onPressed});
 
   final String label;
   final VoidCallback onPressed;

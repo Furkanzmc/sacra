@@ -31,7 +31,7 @@ class MaterialAdaptiveCard extends StatelessWidget {
     final Widget content = Padding(padding: padding ?? EdgeInsets.zero, child: child);
     final Widget materialChild = onTap == null
         ? content
-        : InkWell(onTap: onTap, child: content, borderRadius: BorderRadius.circular(radius));
+        : InkWell(onTap: onTap, borderRadius: BorderRadius.circular(radius), child: content);
     return Card(
       elevation: 1,
       margin: EdgeInsets.zero,

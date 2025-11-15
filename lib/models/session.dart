@@ -113,6 +113,8 @@ class LeadAttempt extends ClimbAttempt {
     required this.heightMeters,
     required this.falls,
     required this.completed,
+    this.sent,
+    this.attemptNumber,
     super.routeName,
     super.notes,
   });
@@ -121,12 +123,19 @@ class LeadAttempt extends ClimbAttempt {
   final double heightMeters;
   final int falls;
   final bool completed;
+  final bool? sent;
+  final int? attemptNumber;
+
+  int get attemptNo => attemptNumber ?? 1;
+  bool get isSent => sent ?? false;
 
   LeadAttempt copyWith({
     Grade? grade,
     double? heightMeters,
     int? falls,
     bool? completed,
+    bool? sent,
+    int? attemptNumber,
     String? notes,
   }) {
     return LeadAttempt(
@@ -136,6 +145,8 @@ class LeadAttempt extends ClimbAttempt {
       heightMeters: heightMeters ?? this.heightMeters,
       falls: falls ?? this.falls,
       completed: completed ?? this.completed,
+      sent: sent ?? this.sent,
+      attemptNumber: attemptNumber ?? this.attemptNumber,
       routeName: routeName,
       notes: notes ?? this.notes,
     );
