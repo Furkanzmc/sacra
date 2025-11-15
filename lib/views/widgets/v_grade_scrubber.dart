@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -22,13 +21,9 @@ class VGradePopupScrubber extends StatefulWidget {
 }
 
 class _VGradePopupScrubberState extends State<VGradePopupScrubber> {
-  OverlayEntry? _entry;
-  ValueNotifier<int>? _indexNotifier;
-  double? _popupTop;
-  // ignore: unused_field
-  double? _popupLeft; // reserved for future horizontal placement tweaks
-  static const double _itemHeight = 36;
-  static const double _popupWidth = 140;
+  // Track selections to promote shortcuts after repeated picks
+  final Map<String, int> _counts = <String, int>{};
+  final List<String> _shortcuts = <String>[];
 
   List<String> get _grades => widget.grades ?? _defaultVGrades;
 
@@ -36,126 +31,63 @@ class _VGradePopupScrubberState extends State<VGradePopupScrubber> {
   Widget build(BuildContext context) {
     return Builder(
       builder: (BuildContext context) {
-        final List<String> quick = <String>['V1', 'V2', 'V3', 'V4'];
-        return Row(
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Expanded(
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: <Widget>[
-                  ...quick.map((String g) => _Segment(
-                        label: g,
-                        onPressed: () => _onQuickPick(g),
-                      )),
-                  GestureDetector(
-                    onTapDown: (TapDownDetails d) {
-                      _showOverlay(context, d.globalPosition);
-                      _updateFromGlobal(d.globalPosition);
-                    },
-                    onPanStart: (DragStartDetails d) => _updateFromGlobal(d.globalPosition),
-                    onPanUpdate: (DragUpdateDetails d) => _updateFromGlobal(d.globalPosition),
-                    onTapUp: (_) => _commitPick(),
-                    onPanEnd: (_) => _commitPick(),
-                    child: _Segment(
-                      label: 'More',
-                      onPressed: () {},
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: _grades
+                          .map((String g) => Padding(
+                                padding: const EdgeInsets.only(right: 8, bottom: 8),
+                                child: _Segment(
+                                  label: g,
+                                  onPressed: () => _onPick(g),
+                                ),
+                              ))
+                          .toList(),
                     ),
                   ),
+                ),
+                if (widget.trailing != null) ...<Widget>[
+                  const SizedBox(width: 8),
+                  widget.trailing!,
                 ],
-              ),
+              ],
             ),
-            if (widget.trailing != null) ...<Widget>[
-              const SizedBox(width: 8),
-              widget.trailing!,
-            ],
+            if (_shortcuts.isNotEmpty)
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: _shortcuts
+                      .map((String g) => Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: _Segment(
+                              label: g,
+                              onPressed: () => _onPick(g),
+                            ),
+                          ))
+                      .toList(),
+                ),
+              ),
           ],
         );
       },
     );
   }
 
-  void _onQuickPick(String label) {
+  void _onPick(String label) {
+    final int next = (_counts[label] ?? 0) + 1;
+    _counts[label] = next;
+    if (next >= 2 && !_shortcuts.contains(label)) {
+      setState(() {
+        _shortcuts.add(label);
+      });
+    }
     widget.onPicked(Grade(system: GradeSystem.vScale, value: label));
-  }
-
-  
-
-  void _showOverlay(BuildContext context, Offset globalPos) {
-    final OverlayState overlay = Overlay.of(context);
-
-    // Compute popup placement near the press position.
-    final Size screen = MediaQuery.of(context).size;
-    final double totalHeight = _itemHeight * _grades.length;
-    final double margin = 12;
-    final double top = math.max(
-      margin,
-      math.min(globalPos.dy - (_itemHeight * 4), screen.height - totalHeight - margin),
-    );
-    final double left = math.max(
-      margin,
-      math.min(globalPos.dx - (_popupWidth / 2), screen.width - _popupWidth - margin),
-    );
-
-    _popupTop = top;
-    _popupLeft = left;
-    final ValueNotifier<int> indexNotifier = ValueNotifier<int>(0);
-    _indexNotifier = indexNotifier;
-
-    final double popupTop = top;
-    final double popupLeft = left;
-
-    _entry = OverlayEntry(
-      builder: (BuildContext context) {
-        return _GradePopup(
-          top: popupTop,
-          left: popupLeft,
-          width: _popupWidth,
-          itemHeight: _itemHeight,
-          grades: _grades,
-          indexListenable: indexNotifier,
-          onCancel: _removeOverlay,
-          onCommit: (int index) {
-            final String label = _grades[index];
-            widget.onPicked(Grade(system: GradeSystem.vScale, value: label));
-            _removeOverlay();
-          },
-        );
-      },
-    );
-    overlay.insert(_entry!);
-  }
-
-  void _removeOverlay() {
-    _entry?.remove();
-    _entry = null;
-    _indexNotifier?.dispose();
-    _indexNotifier = null;
-    _popupTop = null;
-    _popupLeft = null;
-  }
-
-  void _updateFromGlobal(Offset global) {
-    if (_popupTop == null || _indexNotifier == null) {
-      return;
-    }
-    final double dy = global.dy - _popupTop!;
-    int index = (dy / _itemHeight).floor();
-    index = index.clamp(0, _grades.length - 1);
-    if (_indexNotifier!.value != index) {
-      _indexNotifier!.value = index;
-      _entry?.markNeedsBuild();
-    }
-  }
-
-  void _commitPick() {
-    if (_indexNotifier == null) {
-      return;
-    }
-    final int index = _indexNotifier!.value;
-    final String label = _grades[index];
-    widget.onPicked(Grade(system: GradeSystem.vScale, value: label));
-    _removeOverlay();
   }
 }
 
@@ -176,13 +108,8 @@ class YdsGradePopupScrubber extends StatefulWidget {
 }
 
 class _YdsGradePopupScrubberState extends State<YdsGradePopupScrubber> {
-  OverlayEntry? _entry;
-  ValueNotifier<int>? _indexNotifier;
-  double? _popupTop;
-  // ignore: unused_field
-  double? _popupLeft; // reserved for future horizontal placement tweaks
-  static const double _itemHeight = 36;
-  static const double _popupWidth = 160;
+  final Map<String, int> _counts = <String, int>{};
+  final List<String> _shortcuts = <String>[];
 
   List<String> get _grades => widget.grades ?? _defaultYdsGrades;
 
@@ -190,120 +117,63 @@ class _YdsGradePopupScrubberState extends State<YdsGradePopupScrubber> {
   Widget build(BuildContext context) {
     return Builder(
       builder: (BuildContext context) {
-        final List<String> quick = <String>['5.8', '5.9', '5.10a', '5.11a'];
-        return Row(
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Expanded(
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: <Widget>[
-                  ...quick.map((String g) => _Segment(
-                        label: g,
-                        onPressed: () => _onQuickPick(g),
-                      )),
-                  GestureDetector(
-                    onTapDown: (TapDownDetails d) {
-                      _showOverlay(context, d.globalPosition);
-                      _updateFromGlobal(d.globalPosition);
-                    },
-                    onPanStart: (DragStartDetails d) => _updateFromGlobal(d.globalPosition),
-                    onPanUpdate: (DragUpdateDetails d) => _updateFromGlobal(d.globalPosition),
-                    onTapUp: (_) => _commitPick(),
-                    onPanEnd: (_) => _commitPick(),
-                    child: _Segment(
-                      label: 'More',
-                      onPressed: () {},
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: _grades
+                          .map((String g) => Padding(
+                                padding: const EdgeInsets.only(right: 8, bottom: 8),
+                                child: _Segment(
+                                  label: g,
+                                  onPressed: () => _onPick(g),
+                                ),
+                              ))
+                          .toList(),
                     ),
                   ),
+                ),
+                if (widget.trailing != null) ...<Widget>[
+                  const SizedBox(width: 8),
+                  widget.trailing!,
                 ],
-              ),
+              ],
             ),
-            if (widget.trailing != null) ...<Widget>[
-              const SizedBox(width: 8),
-              widget.trailing!,
-            ],
+            if (_shortcuts.isNotEmpty)
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: _shortcuts
+                      .map((String g) => Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: _Segment(
+                              label: g,
+                              onPressed: () => _onPick(g),
+                            ),
+                          ))
+                      .toList(),
+                ),
+              ),
           ],
         );
       },
     );
   }
 
-  void _onQuickPick(String label) {
+  void _onPick(String label) {
+    final int next = (_counts[label] ?? 0) + 1;
+    _counts[label] = next;
+    if (next >= 2 && !_shortcuts.contains(label)) {
+      setState(() {
+        _shortcuts.add(label);
+      });
+    }
     widget.onPicked(Grade(system: GradeSystem.yds, value: label));
-  }
-
-  void _showOverlay(BuildContext context, Offset globalPos) {
-    final OverlayState overlay = Overlay.of(context);
-    final Size screen = MediaQuery.of(context).size;
-    final double totalHeight = _itemHeight * _grades.length;
-    final double margin = 12;
-    final double top = math.max(
-      margin,
-      math.min(globalPos.dy - (_itemHeight * 4), screen.height - totalHeight - margin),
-    );
-    final double left = math.max(
-      margin,
-      math.min(globalPos.dx - (_popupWidth / 2), screen.width - _popupWidth - margin),
-    );
-    _popupTop = top;
-    _popupLeft = left;
-    final ValueNotifier<int> indexNotifier = ValueNotifier<int>(0);
-    _indexNotifier = indexNotifier;
-    final double popupTop = top;
-    final double popupLeft = left;
-
-    _entry = OverlayEntry(
-      builder: (BuildContext context) {
-        return _GradePopup(
-          top: popupTop,
-          left: popupLeft,
-          width: _popupWidth,
-          itemHeight: _itemHeight,
-          grades: _grades,
-          indexListenable: indexNotifier,
-          onCancel: _removeOverlay,
-          onCommit: (int index) {
-            final String label = _grades[index];
-            widget.onPicked(Grade(system: GradeSystem.yds, value: label));
-            _removeOverlay();
-          },
-        );
-      },
-    );
-    overlay.insert(_entry!);
-  }
-
-  void _removeOverlay() {
-    _entry?.remove();
-    _entry = null;
-    _indexNotifier?.dispose();
-    _indexNotifier = null;
-    _popupTop = null;
-    _popupLeft = null;
-  }
-
-  void _updateFromGlobal(Offset global) {
-    if (_popupTop == null || _indexNotifier == null) {
-      return;
-    }
-    final double dy = global.dy - _popupTop!;
-    int index = (dy / _itemHeight).floor();
-    index = index.clamp(0, _grades.length - 1);
-    if (_indexNotifier!.value != index) {
-      _indexNotifier!.value = index;
-      _entry?.markNeedsBuild();
-    }
-  }
-
-  void _commitPick() {
-    if (_indexNotifier == null) {
-      return;
-    }
-    final int index = _indexNotifier!.value;
-    final String label = _grades[index];
-    widget.onPicked(Grade(system: GradeSystem.yds, value: label));
-    _removeOverlay();
   }
 }
 
@@ -322,115 +192,7 @@ const List<String> _defaultVGrades = <String>[
   'V9', 'V10', 'V11', 'V12', 'V13', 'V14', 'V15', 'V16',
 ];
 
-class _GradePopup extends StatelessWidget {
-  const _GradePopup({
-    required this.top,
-    required this.left,
-    required this.width,
-    required this.itemHeight,
-    required this.grades,
-    required this.indexListenable,
-    required this.onCancel,
-    required this.onCommit,
-  });
-
-  final double top;
-  final double left;
-  final double width;
-  final double itemHeight;
-  final List<String> grades;
-  final ValueListenable<int> indexListenable;
-  final VoidCallback onCancel;
-  final void Function(int index) onCommit;
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    return Stack(
-      children: <Widget>[
-        Positioned.fill(
-          child: GestureDetector(onTap: onCancel),
-        ),
-        Positioned(
-          top: top,
-          left: left,
-          child: Material(
-            elevation: 8,
-            color: scheme.surface,
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              width: width,
-              height: math.min(
-                itemHeight * grades.length,
-                MediaQuery.of(context).size.height - top - 12,
-              ),
-              decoration: BoxDecoration(
-                color: scheme.surface,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: scheme.outlineVariant),
-              ),
-              child: LayoutBuilder(
-                builder: (BuildContext context, BoxConstraints constraints) {
-                  final double perItemHeight = constraints.maxHeight / grades.length;
-                  return GestureDetector(
-                    onPanDown: (DragDownDetails d) => _updateFromLocal(d.localPosition.dy, context),
-                    onPanUpdate: (DragUpdateDetails d) => _updateFromLocal(d.localPosition.dy, context),
-                    onPanEnd: (_) => onCommit(indexListenable.value),
-                    onTapUp: (TapUpDetails d) {
-                      _updateFromLocal(d.localPosition.dy, context);
-                      onCommit(indexListenable.value);
-                    },
-                    child: ValueListenableBuilder<int>(
-                      valueListenable: indexListenable,
-                      builder: (BuildContext context, int current, _) {
-                        return ListView.builder(
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: grades.length,
-                          itemBuilder: (BuildContext context, int i) {
-                            final bool active = i == current;
-                            return Container(
-                              height: perItemHeight,
-                              color: active ? scheme.primary.withValues(alpha: 0.12) : null,
-                              alignment: Alignment.centerLeft,
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
-                              child: Text(
-                                grades[i],
-                                style: TextStyle(
-                                  color: scheme.onSurface,
-                                  fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                                ),
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _updateFromLocal(double localDy, BuildContext context) {
-    final RenderBox box = context.findRenderObject() as RenderBox;
-    final Size size = box.size;
-    final double constrainedDy = localDy.clamp(0.0, size.height);
-    final double perItem = size.height / grades.length;
-    final int index = (constrainedDy / perItem)
-        .floor()
-        .clamp(0, grades.length - 1);
-    if (indexListenable is ValueNotifier<int>) {
-      final ValueNotifier<int> vn = indexListenable as ValueNotifier<int>;
-      if (vn.value != index) {
-        vn.value = index;
-      }
-    }
-  }
-}
+// Popup removed; using horizontal scrollers instead
 
 class _Segment extends StatelessWidget {
   const _Segment({required this.label, required this.onPressed});
