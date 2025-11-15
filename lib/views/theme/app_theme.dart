@@ -2,16 +2,31 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   static ThemeData get light {
+    final ColorScheme scheme =
+        ColorScheme.fromSeed(seedColor: Colors.teal, brightness: Brightness.light);
     return ThemeData(
-      colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+      colorScheme: scheme,
       useMaterial3: true,
+      scaffoldBackgroundColor: scheme.surface,
+      appBarTheme: AppBarTheme(
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
+        elevation: 0,
+      ),
     );
   }
 
   static ThemeData get dark {
-    return ThemeData.dark(useMaterial3: true).copyWith(
-      colorScheme: const ColorScheme.dark().copyWith(
-        primary: Colors.teal,
+    final ColorScheme scheme =
+        ColorScheme.fromSeed(seedColor: Colors.teal, brightness: Brightness.dark);
+    return ThemeData(
+      colorScheme: scheme,
+      useMaterial3: true,
+      scaffoldBackgroundColor: scheme.surface,
+      appBarTheme: AppBarTheme(
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
+        elevation: 0,
       ),
     );
   }

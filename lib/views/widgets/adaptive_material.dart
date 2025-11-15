@@ -32,10 +32,12 @@ class MaterialAdaptiveCard extends StatelessWidget {
     final Widget materialChild = onTap == null
         ? content
         : InkWell(onTap: onTap, borderRadius: BorderRadius.circular(radius), child: content);
+    final ColorScheme scheme = Theme.of(context).colorScheme;
     return Card(
-      elevation: 1,
+      elevation: 2,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius)),
+      color: scheme.surfaceContainerHighest,
       child: materialChild,
     );
   }

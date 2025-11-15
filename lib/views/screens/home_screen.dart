@@ -273,8 +273,8 @@ class _SummaryRing extends StatelessWidget {
             children: <Widget>[
               CircularProgressIndicator(
                 value: value,
-                strokeWidth: 8,
-                backgroundColor: scheme.surfaceVariant,
+                strokeWidth: 10,
+                backgroundColor: scheme.surfaceContainerHighest,
                 valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
               ),
               Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -293,19 +293,26 @@ Widget _pill(BuildContext context, String text, {IconData? icon}) {
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
     decoration: BoxDecoration(
-      color: scheme.surfaceVariant,
+      color: icon == Icons.flag ? scheme.tertiaryContainer : scheme.secondaryContainer,
       borderRadius: BorderRadius.circular(999),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         if (icon != null) ...<Widget>[
-          Icon(icon, size: 14, color: scheme.onSurfaceVariant),
+          Icon(
+            icon,
+            size: 14,
+            color: icon == Icons.flag ? scheme.onTertiaryContainer : scheme.onSecondaryContainer,
+          ),
           const SizedBox(height: 6),
         ],
         Text(
           text,
-          style: Theme.of(context).textTheme.bodySmall,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: icon == Icons.flag ? scheme.onTertiaryContainer : scheme.onSecondaryContainer,
+                fontWeight: FontWeight.w600,
+              ),
         ),
       ],
     ),
