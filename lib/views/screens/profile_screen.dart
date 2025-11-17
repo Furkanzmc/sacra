@@ -8,9 +8,17 @@ import '../theme/app_theme.dart';
 import '../widgets/responsive.dart';
 import '../widgets/adaptive.dart';
 import 'settings_screen.dart';
+import '../widgets/activity_list.dart';
+import '../../viewmodels/session_log_view_model.dart';
+import '../../models/session.dart';
+import 'active_session_screen.dart';
 
 final StateProvider<bool> _profileEditingProvider =
     StateProvider<bool>((StateProviderRef<bool> ref) => false);
+
+// Persist week selection across rebuilds
+final StateProvider<DateTime> _profileWeekStartProvider =
+    StateProvider<DateTime>((StateProviderRef<DateTime> ref) => _startOfWeek(DateTime.now()));
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -19,7 +27,18 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ProfileState state = ref.watch(profileProvider);
     final bool isEditing = ref.watch(_profileEditingProvider);
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+    // final ColorScheme scheme = Theme.of(context).colorScheme;
+    final DateTime weekStart = ref.watch(_profileWeekStartProvider);
+    final List<Session> all = ref.watch(sessionLogProvider).pastSessions;
+    final DateTime weekEnd = _endOfWeek(weekStart);
+    final List<Session> weekSessions = all
+        .where((Session s) {
+          final DateTime dt = s.endTime ?? s.startTime;
+          final DateTime d = DateTime(dt.year, dt.month, dt.day);
+          return !d.isBefore(weekStart) && !d.isAfter(weekEnd);
+        })
+        .toList()
+      ..sort((Session a, Session b) => (b.endTime ?? b.startTime).compareTo(a.endTime ?? a.startTime));
     return AdaptiveScaffold(
       title: const Text('Profile'),
       actions: <Widget>[
@@ -112,47 +131,46 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                 ),
               ],
-              const SizedBox(height: AppSpacing.lg),
-              Text('Buddies', style: AppTextStyles.title),
               const SizedBox(height: AppSpacing.sm),
-              if (state.buddies.isEmpty)
-                Text('No buddies yet', style: Theme.of(context).textTheme.bodySmall)
-              else
-                SizedBox(
-                  height: 84,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: state.buddies.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
-                    itemBuilder: (BuildContext context, int index) {
-                      final Buddy b = state.buddies[index];
-                      return Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          CircleAvatar(
-                            radius: 24,
-                            backgroundColor: scheme.secondaryContainer,
-                            backgroundImage: (b.avatarUrl == null || b.avatarUrl!.isEmpty) ? null : NetworkImage(b.avatarUrl!),
-                            child: (b.avatarUrl == null || b.avatarUrl!.isEmpty)
-                                ? Text(_initials(b.name), style: const TextStyle(fontWeight: FontWeight.w600))
-                                : null,
-                          ),
-                          const SizedBox(height: 6),
-                          SizedBox(
-                            width: 72,
-                            child: Text(
-                              b.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ),
-                        ],
-                      );
+              Row(
+                children: <Widget>[
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).push(MaterialPageRoute<Widget>(builder: (_) => const FollowersScreen()));
                     },
+                    child: Text('Followers (${state.buddies.length})'),
                   ),
+                  const SizedBox(width: AppSpacing.md),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).push(MaterialPageRoute<Widget>(builder: (_) => const FollowingScreen()));
+                    },
+                    child: Text('Following (${state.buddies.length})'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              // Week controls and summary moved from Home to Profile
+              WeekHeader(
+                weekStart: weekStart,
+                onChange: (DateTime next) => ref.read(_profileWeekStartProvider.notifier).state = _startOfWeek(next),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              WeeklySummaryCard(sessions: all, weekStart: weekStart),
+              const SizedBox(height: AppSpacing.lg),
+              SizedBox(
+                height: 400,
+                child: ActivityList(
+                  items: weekSessions.map((Session s) => ActivityListItem(session: s)).toList(),
+                  onTap: (Session s) {
+                    final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
+                    vm.editPastSession(s.id);
+                    Navigator.of(context).push(
+                      MaterialPageRoute<Widget>(builder: (_) => ActiveSessionScreen(session: s)),
+                    );
+                  },
                 ),
+              ),
             ],
           ),
         ),
@@ -469,4 +487,58 @@ Future<void> _pickHomeGym(BuildContext context, WidgetRef ref) async {
       );
     },
   );
+}
+
+DateTime _startOfWeek(DateTime d) {
+  final DateTime date = DateTime(d.year, d.month, d.day);
+  final int weekday = date.weekday;
+  return date.subtract(Duration(days: weekday - 1));
+}
+
+DateTime _endOfWeek(DateTime start) => start.add(const Duration(days: 6));
+
+class FollowersScreen extends ConsumerWidget {
+  const FollowersScreen({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final List<Buddy> buddies = ref.watch(profileProvider).buddies;
+    return AdaptiveScaffold(
+      title: const Text('Followers'),
+      body: ListView.separated(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        itemCount: buddies.length,
+        separatorBuilder: (_, __) => const Divider(height: 1),
+        itemBuilder: (BuildContext context, int i) {
+          final Buddy b = buddies[i];
+          return ListTile(
+            leading: CircleAvatar(child: Text(_initials(b.name))),
+            title: Text(b.name),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class FollowingScreen extends ConsumerWidget {
+  const FollowingScreen({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final List<Buddy> buddies = ref.watch(profileProvider).buddies;
+    return AdaptiveScaffold(
+      title: const Text('Following'),
+      body: ListView.separated(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        itemCount: buddies.length,
+        separatorBuilder: (_, __) => const Divider(height: 1),
+        itemBuilder: (BuildContext context, int i) {
+          final Buddy b = buddies[i];
+          return ListTile(
+            leading: CircleAvatar(child: Text(_initials(b.name))),
+            title: Text(b.name),
+          );
+        },
+      ),
+    );
+  }
 }
