@@ -12,6 +12,7 @@ import '../widgets/v_grade_scrubber.dart';
 import '../widgets/adaptive.dart';
 import '../widgets/navigation_scope.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../widgets/gym_picker.dart';
 
 class _MountainHeightView extends StatefulWidget {
   const _MountainHeightView({required this.heightMeters, required this.maxHeightMeters, this.onChanged});
@@ -260,12 +261,20 @@ class ActiveSessionScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final SessionLogState state = ref.watch(sessionLogProvider);
-    final Session? effectiveSession = session ?? state.activeSession;
+    // Resolve a live session reference so title updates while editing past sessions
+    final Session? liveSession = () {
+      if (session != null) {
+        if (state.activeSession?.id == session!.id) return state.activeSession;
+        if (state.editingSession?.id == session!.id) return state.editingSession;
+        return session;
+      }
+      return state.activeSession;
+    }();
     final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
 
-    // Compute friendly title and optional highest grade (bouldering)
+    // Compute friendly title; append gym when available
     String displayType;
-    switch (effectiveSession?.climbType) {
+    switch (liveSession?.climbType) {
       case ClimbType.bouldering:
         displayType = 'Bouldering';
         break;
@@ -278,10 +287,20 @@ class ActiveSessionScreen extends ConsumerWidget {
       default:
         displayType = 'Session';
     }
+    final String titleText = () {
+      if (liveSession == null) return 'Active Session';
+      final String? gym = liveSession.gymName;
+      final String withGym = (gym != null && gym.isNotEmpty) ? '$displayType at $gym' : displayType;
+      return withGym;
+    }();
     return AdaptiveScaffold(
       title: Text(
-        effectiveSession == null ? 'Active Session' : 'Active: $displayType',
-        style: AppTextStyles.title,
+        titleText,
+        style: () {
+          final TextStyle base = AppTextStyles.title;
+          final double? fs = base.fontSize;
+          return base.copyWith(fontSize: fs != null ? fs * 0.7 : null);
+        }(),
       ),
       actions: null,
       body: Center(
@@ -291,9 +310,9 @@ class ActiveSessionScreen extends ConsumerWidget {
           ),
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
-            child: effectiveSession == null
+            child: liveSession == null
                 ? _StartOptions(onStart: vm.startSession)
-                : _ActiveBody(session: effectiveSession),
+                : _ActiveBody(session: liveSession),
           ),
         ),
       ),
@@ -587,6 +606,22 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
             children: <Widget>[
               // Notes toggle button (uses provider logic)
               _SessionNotesButton(),
+              // Home gym picker button
+              Consumer(
+                builder: (BuildContext context, WidgetRef ref, _) {
+                  return AdaptiveIconButton(
+                    onPressed: () async {
+                      final String? gym = await showHomeGymPicker(context);
+                      if (gym == null) return;
+                      ref.read(sessionLogProvider.notifier).updateSessionGymName(gym);
+                    },
+                    tooltip: 'Set home gym',
+                    icon: Icon(
+                      defaultTargetPlatform == TargetPlatform.iOS ? CupertinoIcons.location : Icons.location_on_outlined,
+                    ),
+                  );
+                },
+              ),
               const Spacer(),
               if (widget.showEndAction)
                 AdaptiveIconButton(

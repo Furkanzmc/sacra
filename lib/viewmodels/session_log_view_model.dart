@@ -479,6 +479,18 @@ class SessionLogViewModel extends Notifier<SessionLogState> {
       state = state.copyWith(editingSession: s.copyWith(notes: notes));
     }
   }
+
+  void updateSessionGymName(String? gymName) {
+    if (state.activeSession != null) {
+      final Session s = state.activeSession!;
+      state = state.copyWith(activeSession: s.copyWith(gymName: gymName));
+      return;
+    }
+    if (state.editingSession != null) {
+      final Session s = state.editingSession!;
+      state = state.copyWith(editingSession: s.copyWith(gymName: gymName));
+    }
+  }
 }
 
 final NotifierProvider<SessionLogViewModel, SessionLogState> sessionLogProvider =
