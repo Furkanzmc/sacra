@@ -606,6 +606,36 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
             children: <Widget>[
               // Notes toggle button (uses provider logic)
               _SessionNotesButton(),
+              // Session rating emojis
+              Consumer(
+                builder: (BuildContext context, WidgetRef ref, _) {
+                  final Session? s = ref.watch(sessionLogProvider).activeSession ?? ref.watch(sessionLogProvider).editingSession;
+                  final int? rating = s?.rating;
+                  Widget buildEmoji(int val, String emoji) {
+                    final bool sel = rating == val;
+                    return GestureDetector(
+                      onTap: () => ref.read(sessionLogProvider.notifier).updateSessionRating(val),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: Text(
+                          emoji,
+                          style: TextStyle(fontSize: sel ? 20 : 18),
+                        ),
+                      ),
+                    );
+                  }
+                  return Row(
+                    children: <Widget>[
+                      const SizedBox(width: 8),
+                      buildEmoji(1, '😫'),
+                      buildEmoji(2, '😕'),
+                      buildEmoji(3, '😐'),
+                      buildEmoji(4, '🙂'),
+                      buildEmoji(5, '😄'),
+                    ],
+                  );
+                },
+              ),
               // Home gym picker button
               Consumer(
                 builder: (BuildContext context, WidgetRef ref, _) {

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/activity.dart';
 
 @immutable
 class Buddy {
@@ -17,6 +18,8 @@ class ProfileState {
     required this.location,
     required this.homeGym,
     required this.buddies,
+    required this.interests,
+    required this.maxGrades,
   });
 
   final String? photoUrl;
@@ -24,6 +27,8 @@ class ProfileState {
   final String? location;
   final String? homeGym;
   final List<Buddy> buddies;
+  final Set<ClimbType> interests;
+  final Map<ClimbType, String> maxGrades;
 
   ProfileState copyWith({
     String? photoUrl,
@@ -31,6 +36,8 @@ class ProfileState {
     String? location,
     String? homeGym,
     List<Buddy>? buddies,
+    Set<ClimbType>? interests,
+    Map<ClimbType, String>? maxGrades,
   }) {
     return ProfileState(
       photoUrl: photoUrl ?? this.photoUrl,
@@ -38,6 +45,8 @@ class ProfileState {
       location: location ?? this.location,
       homeGym: homeGym ?? this.homeGym,
       buddies: buddies ?? this.buddies,
+      interests: interests ?? this.interests,
+      maxGrades: maxGrades ?? this.maxGrades,
     );
   }
 }
@@ -56,6 +65,12 @@ class ProfileViewModel extends Notifier<ProfileState> {
         Buddy(id: 'b2', name: 'Ben'),
         Buddy(id: 'b3', name: 'Kai'),
       ],
+      interests: <ClimbType>{ClimbType.bouldering, ClimbType.topRope, ClimbType.lead},
+      maxGrades: <ClimbType, String>{
+        ClimbType.bouldering: 'V4',
+        ClimbType.topRope: '5.11a',
+        ClimbType.lead: '5.10b',
+      },
     );
   }
 
@@ -83,6 +98,22 @@ class ProfileViewModel extends Notifier<ProfileState> {
   void removeBuddy(String buddyId) {
     final List<Buddy> next = state.buddies.where((Buddy b) => b.id != buddyId).toList();
     state = state.copyWith(buddies: next);
+  }
+
+  void toggleInterest(ClimbType type) {
+    final Set<ClimbType> next = Set<ClimbType>.from(state.interests);
+    if (next.contains(type)) {
+      next.remove(type);
+    } else {
+      next.add(type);
+    }
+    state = state.copyWith(interests: next);
+  }
+
+  void setMaxGrade(ClimbType type, String grade) {
+    final Map<ClimbType, String> next = Map<ClimbType, String>.from(state.maxGrades);
+    next[type] = grade;
+    state = state.copyWith(maxGrades: next);
   }
 }
 

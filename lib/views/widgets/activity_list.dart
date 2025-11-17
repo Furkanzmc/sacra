@@ -35,6 +35,7 @@ class ActivityList extends ConsumerWidget {
         final String time = adaptiveFormatTime(context, recorded);
         final int count = s.attempts.length;
         final _TypeColors tc = _colorsForType(s.climbType, scheme);
+        final String? emoji = _ratingEmoji(s.rating);
         return AdaptiveCard(
           padding: const EdgeInsets.all(AppSpacing.md),
           color: tc.container,
@@ -56,6 +57,10 @@ class ActivityList extends ConsumerWidget {
                             const SizedBox(width: 8),
                           ],
                           Text(_activityTypeLabel(s.climbType), style: AppTextStyles.title.copyWith(color: tc.onContainer)),
+                          if (emoji != null) ...<Widget>[
+                            const SizedBox(width: 6),
+                            Text(emoji),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 4),
@@ -132,11 +137,14 @@ class WeeklySummaryCard extends StatelessWidget {
     final DateTime weekEnd = _endOfWeek(weekStart);
     int total = 0;
     int boulder = 0, ropeTop = 0, ropeLead = 0;
+    String? maxV;
+    String? maxYds;
     for (final Session s in sessions) {
       final DateTime dt = s.endTime ?? s.startTime;
       final DateTime d = DateTime(dt.year, dt.month, dt.day);
       if (!d.isBefore(weekStart) && !d.isAfter(weekEnd)) {
         total += 1;
+        // Compute counts
         switch (s.climbType) {
           case ClimbType.bouldering:
             boulder++;
@@ -147,6 +155,19 @@ class WeeklySummaryCard extends StatelessWidget {
           case ClimbType.lead:
             ropeLead++;
             break;
+        }
+        // Compute max grades
+        for (final ClimbAttempt a in s.attempts) {
+          if (a is BoulderingAttempt) {
+            final String g = a.grade.value;
+            if (maxV == null || _vIndex(g) > _vIndex(maxV)) maxV = g;
+          } else if (a is TopRopeAttempt) {
+            final String g = a.grade.value;
+            if (maxYds == null || _ydsIndex(g) > _ydsIndex(maxYds)) maxYds = g;
+          } else if (a is LeadAttempt) {
+            final String g = a.grade.value;
+            if (maxYds == null || _ydsIndex(g) > _ydsIndex(maxYds)) maxYds = g;
+          }
         }
       }
     }
@@ -186,6 +207,12 @@ class WeeklySummaryCard extends StatelessWidget {
                       _pill(context, 'Goal $total / $weeklyGoal', null, icon: Icons.flag),
                     ],
                   ),
+                  const SizedBox(height: 6),
+                  if (maxV != null || maxYds != null)
+                    Text(
+                      'Max this week: ${maxV ?? '-'}${(maxV != null && maxYds != null) ? ' • ' : ''}${maxYds ?? '-'}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                 ],
               ),
             ),
@@ -289,4 +316,43 @@ _TypeColors _colorsForType(ClimbType t, ColorScheme scheme) {
 }
 
 DateTime _endOfWeek(DateTime start) => start.add(const Duration(days: 6));
+
+int _vIndex(String v) {
+  const List<String> order = <String>[
+    'V0','V1','V2','V3','V4','V5','V6','V7','V8','V9','V10','V11','V12','V13','V14','V15','V16'
+  ];
+  final int i = order.indexOf(v);
+  return i < 0 ? -1 : i;
+}
+
+int _ydsIndex(String y) {
+  const List<String> order = <String>[
+    '5.4','5.5','5.6','5.7','5.8','5.9',
+    '5.10a','5.10b','5.10c','5.10d',
+    '5.11a','5.11b','5.11c','5.11d',
+    '5.12a','5.12b','5.12c','5.12d',
+    '5.13a','5.13b','5.13c','5.13d',
+    '5.14a','5.14b','5.14c','5.14d',
+    '5.15a','5.15b','5.15c','5.15d',
+  ];
+  final int i = order.indexOf(y);
+  return i < 0 ? -1 : i;
+}
+
+String? _ratingEmoji(int? rating) {
+  switch (rating) {
+    case 1:
+      return '😫';
+    case 2:
+      return '😕';
+    case 3:
+      return '😐';
+    case 4:
+      return '🙂';
+    case 5:
+      return '😄';
+    default:
+      return null;
+  }
+}
 

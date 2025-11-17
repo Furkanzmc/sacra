@@ -157,6 +157,11 @@ class ProfileScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),
+              // Interests & Max difficulties
+              Text('Interests & Max', style: AppTextStyles.title),
+              const SizedBox(height: AppSpacing.sm),
+              _InterestsAndMax(editing: isEditing),
+              const SizedBox(height: AppSpacing.lg),
               // Week controls and summary moved from Home to Profile
               WeekHeader(
                 weekStart: weekStart,
@@ -429,4 +434,141 @@ class FollowingScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _InterestsAndMax extends ConsumerStatefulWidget {
+  const _InterestsAndMax({required this.editing});
+  final bool editing;
+  @override
+  ConsumerState<_InterestsAndMax> createState() => _InterestsAndMaxState();
+}
+
+class _InterestsAndMaxState extends ConsumerState<_InterestsAndMax> {
+  late final TextEditingController _boulderCtrl;
+  late final TextEditingController _topCtrl;
+  late final TextEditingController _leadCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    final ProfileState ps = ref.read(profileProvider);
+    _boulderCtrl = TextEditingController(text: ps.maxGrades[ClimbType.bouldering] ?? '');
+    _topCtrl = TextEditingController(text: ps.maxGrades[ClimbType.topRope] ?? '');
+    _leadCtrl = TextEditingController(text: ps.maxGrades[ClimbType.lead] ?? '');
+  }
+
+  @override
+  void dispose() {
+    _boulderCtrl.dispose();
+    _topCtrl.dispose();
+    _leadCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ProfileState ps = ref.watch(profileProvider);
+    final ProfileViewModel vm = ref.read(profileProvider.notifier);
+    final Set<ClimbType> interested = ps.interests;
+    if (!widget.editing && interested.isEmpty) {
+      return Row(
+        children: <Widget>[
+          Expanded(
+            child: Text(
+              'No interests set',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          TextButton(
+            onPressed: () => ref.read(_profileEditingProvider.notifier).state = true,
+            child: const Text('Set interests'),
+          ),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        if (widget.editing)
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: <Widget>[
+              _interestChip(context, 'Bouldering', interested.contains(ClimbType.bouldering), () => vm.toggleInterest(ClimbType.bouldering)),
+              _interestChip(context, 'Top Rope', interested.contains(ClimbType.topRope), () => vm.toggleInterest(ClimbType.topRope)),
+              _interestChip(context, 'Lead', interested.contains(ClimbType.lead), () => vm.toggleInterest(ClimbType.lead)),
+            ],
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: <Widget>[
+              if (interested.contains(ClimbType.bouldering))
+                _interestReadOnlyPill(context, 'Bouldering', ps.maxGrades[ClimbType.bouldering]),
+              if (interested.contains(ClimbType.topRope))
+                _interestReadOnlyPill(context, 'Top Rope', ps.maxGrades[ClimbType.topRope]),
+              if (interested.contains(ClimbType.lead))
+                _interestReadOnlyPill(context, 'Lead', ps.maxGrades[ClimbType.lead]),
+            ],
+          ),
+        const SizedBox(height: AppSpacing.sm),
+        if (widget.editing)
+          Wrap(
+            spacing: AppSpacing.md,
+            runSpacing: AppSpacing.sm,
+            children: <Widget>[
+              if (interested.contains(ClimbType.bouldering))
+                _maxField(context, label: 'Max V', controller: _boulderCtrl, enabled: widget.editing, onChanged: (String v) => vm.setMaxGrade(ClimbType.bouldering, v)),
+              if (interested.contains(ClimbType.topRope))
+                _maxField(context, label: 'Max YDS (TR)', controller: _topCtrl, enabled: widget.editing, onChanged: (String v) => vm.setMaxGrade(ClimbType.topRope, v)),
+              if (interested.contains(ClimbType.lead))
+                _maxField(context, label: 'Max YDS (Lead)', controller: _leadCtrl, enabled: widget.editing, onChanged: (String v) => vm.setMaxGrade(ClimbType.lead, v)),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _interestChip(BuildContext context, String text, bool selected, VoidCallback onTap) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: widget.editing ? onTap : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: selected ? scheme.primary : scheme.outlineVariant, width: 2),
+        ),
+        child: Text(text, style: Theme.of(context).textTheme.bodySmall),
+      ),
+    );
+  }
+
+  Widget _maxField(BuildContext context, {required String label, required TextEditingController controller, required bool enabled, required ValueChanged<String> onChanged}) {
+    return SizedBox(
+      width: 140,
+      child: TextField(
+        controller: controller,
+        decoration: InputDecoration(labelText: label),
+        enabled: enabled,
+        onChanged: onChanged,
+      ),
+    );
+  }
+}
+
+Widget _interestReadOnlyPill(BuildContext context, String label, String? grade) {
+  final ColorScheme scheme = Theme.of(context).colorScheme;
+  final String display = grade == null || grade.isEmpty ? label : '$label | $grade';
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(
+      color: scheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(999),
+      border: Border.all(color: scheme.outlineVariant, width: 2),
+    ),
+    child: Text(display, style: Theme.of(context).textTheme.bodySmall),
+  );
 }

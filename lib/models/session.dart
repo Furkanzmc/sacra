@@ -163,6 +163,7 @@ class Session {
     this.gymName,
     this.endTime,
     this.notes,
+    this.rating,
   });
 
   final String id;
@@ -172,6 +173,7 @@ class Session {
   final String? gymName;
   final List<ClimbAttempt> attempts;
   final String? notes;
+  final int? rating; // 1-5 emoji rating
 
   bool get isActive => endTime == null;
 
@@ -182,6 +184,7 @@ class Session {
     String? gymName,
     List<ClimbAttempt>? attempts,
     String? notes,
+    int? rating,
   }) {
     return Session(
       id: id,
@@ -191,6 +194,7 @@ class Session {
       gymName: gymName ?? this.gymName,
       attempts: attempts ?? this.attempts,
       notes: notes ?? this.notes,
+      rating: rating ?? this.rating,
     );
   }
 }
