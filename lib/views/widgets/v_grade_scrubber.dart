@@ -67,6 +67,7 @@ class _VGradePopupScrubberState extends State<VGradePopupScrubber> {
                 _mainShowLeft = left;
                 _mainShowRight = right;
               }),
+              trailing: widget.trailing,
               child: Row(
                 children: _grades
                     .map((String g) => Padding(
@@ -78,7 +79,6 @@ class _VGradePopupScrubberState extends State<VGradePopupScrubber> {
                         ))
                     .toList(),
               ),
-              trailing: widget.trailing,
             ),
           ],
         );
@@ -160,6 +160,7 @@ class _YdsGradePopupScrubberState extends State<YdsGradePopupScrubber> {
                 _mainShowLeft = left;
                 _mainShowRight = right;
               }),
+              trailing: widget.trailing,
               child: Row(
                 children: _grades
                     .map((String g) => Padding(
@@ -171,7 +172,6 @@ class _YdsGradePopupScrubberState extends State<YdsGradePopupScrubber> {
                         ))
                     .toList(),
               ),
-              trailing: widget.trailing,
             ),
           ],
         );

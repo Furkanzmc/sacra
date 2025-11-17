@@ -88,16 +88,16 @@ class AdaptiveCard extends StatelessWidget {
         radius: r,
         padding: padding,
         onTap: onTap,
-        child: child,
         color: color,
+        child: child,
       );
     }
     return mt.MaterialAdaptiveCard(
       radius: r,
       padding: padding,
       onTap: onTap,
-      child: child,
       color: color,
+      child: child,
     );
   }
 }

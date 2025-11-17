@@ -10,7 +10,7 @@ class RopeAttemptTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!(attempt is TopRopeAttempt) && !(attempt is LeadAttempt)) {
+    if (attempt is! TopRopeAttempt && attempt is! LeadAttempt) {
       return const SizedBox.shrink();
     }
     final bool isTopRope = attempt is TopRopeAttempt;
