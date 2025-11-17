@@ -115,9 +115,17 @@ class WeekHeader extends ConsumerWidget {
 }
 
 class WeeklySummaryCard extends StatelessWidget {
-  const WeeklySummaryCard({super.key, required this.sessions, required this.weekStart});
+  const WeeklySummaryCard({
+    super.key,
+    required this.sessions,
+    required this.weekStart,
+    this.selectedType,
+    this.onTypeSelected,
+  });
   final List<Session> sessions;
   final DateTime weekStart;
+  final ClimbType? selectedType;
+  final ValueChanged<ClimbType?>? onTypeSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -163,9 +171,18 @@ class WeeklySummaryCard extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: <Widget>[
-                      _pill(context, 'Bouldering $boulder', ClimbType.bouldering),
-                      _pill(context, 'Top Rope $ropeTop', ClimbType.topRope),
-                      _pill(context, 'Lead $ropeLead', ClimbType.lead),
+                      GestureDetector(
+                        onTap: onTypeSelected == null ? null : () => onTypeSelected!(selectedType == ClimbType.bouldering ? null : ClimbType.bouldering),
+                        child: _pill(context, 'Bouldering $boulder', ClimbType.bouldering, selected: selectedType == ClimbType.bouldering),
+                      ),
+                      GestureDetector(
+                        onTap: onTypeSelected == null ? null : () => onTypeSelected!(selectedType == ClimbType.topRope ? null : ClimbType.topRope),
+                        child: _pill(context, 'Top Rope $ropeTop', ClimbType.topRope, selected: selectedType == ClimbType.topRope),
+                      ),
+                      GestureDetector(
+                        onTap: onTypeSelected == null ? null : () => onTypeSelected!(selectedType == ClimbType.lead ? null : ClimbType.lead),
+                        child: _pill(context, 'Lead $ropeLead', ClimbType.lead, selected: selectedType == ClimbType.lead),
+                      ),
                       _pill(context, 'Goal $total / $weeklyGoal', null, icon: Icons.flag),
                     ],
                   ),
@@ -213,7 +230,7 @@ class _SummaryRing extends StatelessWidget {
   }
 }
 
-Widget _pill(BuildContext context, String text, ClimbType? type, {IconData? icon}) {
+Widget _pill(BuildContext context, String text, ClimbType? type, {IconData? icon, bool selected = false}) {
   final ColorScheme scheme = Theme.of(context).colorScheme;
   _TypeColors tc;
   if (type != null) {
@@ -223,7 +240,12 @@ Widget _pill(BuildContext context, String text, ClimbType? type, {IconData? icon
   }
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-    decoration: BoxDecoration(color: tc.container, borderRadius: BorderRadius.circular(999)),
+    decoration: BoxDecoration(
+      color: tc.container,
+      borderRadius: BorderRadius.circular(999),
+      // Always reserve space for the outline so layout doesn't shift when toggling
+      border: Border.all(color: selected ? scheme.primary : Colors.transparent, width: 2),
+    ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[

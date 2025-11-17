@@ -12,6 +12,7 @@ import '../widgets/activity_list.dart';
 import '../../viewmodels/session_log_view_model.dart';
 import '../../models/session.dart';
 import '../widgets/gym_picker.dart';
+import '../../models/activity.dart';
 import 'active_session_screen.dart';
 
 final StateProvider<bool> _profileEditingProvider =
@@ -20,6 +21,8 @@ final StateProvider<bool> _profileEditingProvider =
 // Persist week selection across rebuilds
 final StateProvider<DateTime> _profileWeekStartProvider =
     StateProvider<DateTime>((StateProviderRef<DateTime> ref) => _startOfWeek(DateTime.now()));
+final StateProvider<ClimbType?> _profileTypeFilterProvider =
+    StateProvider<ClimbType?>((StateProviderRef<ClimbType?> ref) => null);
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -32,11 +35,14 @@ class ProfileScreen extends ConsumerWidget {
     final DateTime weekStart = ref.watch(_profileWeekStartProvider);
     final List<Session> all = ref.watch(sessionLogProvider).pastSessions;
     final DateTime weekEnd = _endOfWeek(weekStart);
+    final ClimbType? selectedType = ref.watch(_profileTypeFilterProvider);
     final List<Session> weekSessions = all
         .where((Session s) {
           final DateTime dt = s.endTime ?? s.startTime;
           final DateTime d = DateTime(dt.year, dt.month, dt.day);
-          return !d.isBefore(weekStart) && !d.isAfter(weekEnd);
+          if (d.isBefore(weekStart) || d.isAfter(weekEnd)) return false;
+          if (selectedType != null && s.climbType != selectedType) return false;
+          return true;
         })
         .toList()
       ..sort((Session a, Session b) => (b.endTime ?? b.startTime).compareTo(a.endTime ?? a.startTime));
@@ -157,7 +163,12 @@ class ProfileScreen extends ConsumerWidget {
                 onChange: (DateTime next) => ref.read(_profileWeekStartProvider.notifier).state = _startOfWeek(next),
               ),
               const SizedBox(height: AppSpacing.sm),
-              WeeklySummaryCard(sessions: all, weekStart: weekStart),
+              WeeklySummaryCard(
+                sessions: all,
+                weekStart: weekStart,
+                selectedType: selectedType,
+                onTypeSelected: (ClimbType? t) => ref.read(_profileTypeFilterProvider.notifier).state = t,
+              ),
               const SizedBox(height: AppSpacing.lg),
               SizedBox(
                 height: 400,
