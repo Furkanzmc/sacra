@@ -103,18 +103,19 @@ class AdaptiveCard extends StatelessWidget {
 }
 
 class AdaptiveIconButton extends StatelessWidget {
-  const AdaptiveIconButton({super.key, required this.icon, required this.onPressed, this.tooltip});
+  const AdaptiveIconButton({super.key, required this.icon, required this.onPressed, this.tooltip, this.compact = false});
 
   final Icon icon;
   final VoidCallback onPressed;
   final String? tooltip;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     if (_isCupertinoPlatform) {
       return cu.CupertinoAdaptiveIconButton(icon: icon, onPressed: onPressed);
     }
-    return mt.MaterialAdaptiveIconButton(icon: icon, onPressed: onPressed, tooltip: tooltip);
+    return mt.MaterialAdaptiveIconButton(icon: icon, onPressed: onPressed, tooltip: tooltip, compact: compact);
   }
 }
 

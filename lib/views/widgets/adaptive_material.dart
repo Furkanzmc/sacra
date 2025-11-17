@@ -45,13 +45,21 @@ class MaterialAdaptiveCard extends StatelessWidget {
 }
 
 class MaterialAdaptiveIconButton extends StatelessWidget {
-  const MaterialAdaptiveIconButton({super.key, required this.icon, required this.onPressed, this.tooltip});
+  const MaterialAdaptiveIconButton({super.key, required this.icon, required this.onPressed, this.tooltip, this.compact = false});
   final Icon icon;
   final VoidCallback onPressed;
   final String? tooltip;
+  final bool compact;
   @override
   Widget build(BuildContext context) {
-    return IconButton(onPressed: onPressed, tooltip: tooltip, icon: icon);
+    return IconButton(
+      onPressed: onPressed,
+      tooltip: tooltip,
+      icon: icon,
+      visualDensity: compact ? VisualDensity.compact : null,
+      padding: compact ? EdgeInsets.zero : null,
+      constraints: compact ? const BoxConstraints(minWidth: 32, minHeight: 32) : null,
+    );
   }
 }
 

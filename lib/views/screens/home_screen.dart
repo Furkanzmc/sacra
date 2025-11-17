@@ -10,6 +10,7 @@ import 'active_session_screen.dart';
 import '../../models/session.dart';
 import '../../models/activity.dart';
 import 'all_sessions_screen.dart';
+import 'profile_screen.dart';
 
 String _homeClimbTypeLabel(ClimbType t) {
   switch (t) {
@@ -47,6 +48,14 @@ class HomeScreen extends ConsumerWidget {
     final DateTime weekEnd = _endOfWeek(weekStart);
     return AdaptiveScaffold(
       title: const Text('Home'),
+      actions: <Widget>[
+        IconButton(
+          icon: const Icon(Icons.person),
+          onPressed: () {
+            Navigator.of(context).push(MaterialPageRoute<Widget>(builder: (_) => const ProfileScreen()));
+          },
+        ),
+      ],
       body: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
