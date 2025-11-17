@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/activity.dart';
 import '../models/session.dart';
+import 'profile_view_model.dart';
 
 @immutable
 class SessionLogState {
@@ -39,12 +40,14 @@ class SessionLogViewModel extends Notifier<SessionLogState> {
     if (state.activeSession != null) {
       return;
     }
+    // Default gym from profile if none provided
+    final String? defaultGym = gymName ?? ref.read(profileProvider).homeGym;
     state = state.copyWith(
       activeSession: Session(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         startTime: DateTime.now(),
         climbType: type,
-        gymName: gymName,
+        gymName: defaultGym,
         attempts: <ClimbAttempt>[],
       ),
     );
