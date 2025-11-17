@@ -233,7 +233,7 @@ class SessionLogViewModel extends Notifier<SessionLogState> {
       final Session current = state.activeSession!;
       final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
         if (a is TopRopeAttempt && a.id == attemptId) {
-          return a.copyWith(completed: completed, sent: completed);
+          return a.copyWith(completed: completed);
         }
         return a;
       }).toList();
@@ -244,7 +244,7 @@ class SessionLogViewModel extends Notifier<SessionLogState> {
       final Session current = state.editingSession!;
       final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
         if (a is TopRopeAttempt && a.id == attemptId) {
-          return a.copyWith(completed: completed, sent: completed);
+          return a.copyWith(completed: completed);
         }
         return a;
       }).toList();
@@ -353,7 +353,7 @@ class SessionLogViewModel extends Notifier<SessionLogState> {
       final Session current = state.activeSession!;
       final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
         if (a is LeadAttempt && a.id == attemptId) {
-          return a.copyWith(completed: completed, sent: completed);
+          return a.copyWith(completed: completed);
         }
         return a;
       }).toList();
@@ -364,7 +364,7 @@ class SessionLogViewModel extends Notifier<SessionLogState> {
       final Session current = state.editingSession!;
       final List<ClimbAttempt> next = current.attempts.map((ClimbAttempt a) {
         if (a is LeadAttempt && a.id == attemptId) {
-          return a.copyWith(completed: completed, sent: completed);
+          return a.copyWith(completed: completed);
         }
         return a;
       }).toList();

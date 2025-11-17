@@ -914,11 +914,19 @@ class _AttemptCardState extends ConsumerState<_AttemptCard> with AutomaticKeepAl
                       final bool next = !(_ropeSentLocal ?? t.isSent);
                       setState(() => _ropeSentLocal = next);
                       vm.updateTopRopeAttemptSent(t.id, next);
+                  if (next) {
+                    _ropeCompletedLocal = true;
+                    vm.updateTopRopeAttemptCompleted(t.id, true);
+                  }
                     } else if (widget.a is LeadAttempt) {
                       final LeadAttempt l = widget.a as LeadAttempt;
                       final bool next = !(_ropeSentLocal ?? l.isSent);
                       setState(() => _ropeSentLocal = next);
                       vm.updateLeadAttemptSent(l.id, next);
+                  if (next) {
+                    _ropeCompletedLocal = true;
+                    vm.updateLeadAttemptCompleted(l.id, true);
+                  }
                     }
                   },
                   tooltip: (widget.a is BoulderingAttempt) ? 'Flashed' : 'Sent',
