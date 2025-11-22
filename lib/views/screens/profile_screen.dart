@@ -133,14 +133,14 @@ class ProfileScreen extends ConsumerWidget {
                 children: <Widget>[
                   TextButton(
                     onPressed: () {
-                      Navigator.of(context).push(MaterialPageRoute<Widget>(builder: (_) => const FollowersScreen()));
+                      _showBuddiesSheet(context, 'Followers', state.buddies);
                     },
                     child: Text('Followers (${state.buddies.length})'),
                   ),
                   const SizedBox(width: AppSpacing.md),
                   TextButton(
                     onPressed: () {
-                      Navigator.of(context).push(MaterialPageRoute<Widget>(builder: (_) => const FollowingScreen()));
+                      _showBuddiesSheet(context, 'Following', state.buddies);
                     },
                     child: Text('Following (${state.buddies.length})'),
                   ),
@@ -562,9 +562,15 @@ class _InterestsAndMaxState extends ConsumerState<_InterestsAndMax> {
       builder: (BuildContext ctx) {
         final ColorScheme scheme = Theme.of(ctx).colorScheme;
         final double height = MediaQuery.of(ctx).size.height * 0.6;
+        // Reduce top padding if there are many items to maximize visible content
+        // Approximate counts for grade sets
+        final int itemCount = (type == ClimbType.bouldering) ? 17 : 31;
+        final bool many = itemCount > 10;
+        final double topGap = many ? 6 : 12;
+        final EdgeInsets contentPadding = EdgeInsets.fromLTRB(AppSpacing.md, many ? AppSpacing.sm : AppSpacing.md, AppSpacing.md, AppSpacing.md);
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.md),
+            padding: contentPadding,
             child: SizedBox(
               height: height,
               child: Column(
@@ -580,9 +586,9 @@ class _InterestsAndMaxState extends ConsumerState<_InterestsAndMax> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: topGap),
                   Text('Select grade', style: Theme.of(ctx).textTheme.titleMedium),
-                  const SizedBox(height: 8),
+                  SizedBox(height: many ? 4 : 8),
                   Expanded(child: picker),
                 ],
               ),
@@ -667,5 +673,59 @@ Widget _compactInterestPill(BuildContext context, String label, String? grade) {
       border: Border.all(color: scheme.outlineVariant, width: 1),
     ),
     child: Text(display, style: Theme.of(context).textTheme.bodySmall),
+  );
+}
+
+Future<void> _showBuddiesSheet(BuildContext context, String title, List<Buddy> buddies) async {
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (BuildContext ctx) {
+      final ColorScheme scheme = Theme.of(ctx).colorScheme;
+      final double height = MediaQuery.of(ctx).size.height * 0.6;
+      final bool many = buddies.length > 10;
+      final EdgeInsets contentPadding = EdgeInsets.all(many ? AppSpacing.sm : AppSpacing.md);
+      return SafeArea(
+        child: Padding(
+          padding: contentPadding,
+          child: SizedBox(
+            height: height,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                const SizedBox(height: 4),
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: scheme.outlineVariant,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                SizedBox(height: many ? 6 : 12),
+                Text(title, style: Theme.of(ctx).textTheme.titleMedium, textAlign: TextAlign.center),
+                SizedBox(height: many ? 4 : 8),
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: buddies.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (BuildContext context, int i) {
+                      final Buddy b = buddies[i];
+                      return ListTile(
+                        leading: CircleAvatar(child: Text(_initials(b.name))),
+                        title: Text(b.name),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    },
   );
 }
