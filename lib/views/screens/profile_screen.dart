@@ -475,21 +475,16 @@ class _InterestsAndMaxState extends ConsumerState<_InterestsAndMax> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         if (!widget.editing)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: <Widget>[
               if (interested.contains(ClimbType.bouldering))
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _interestItem(context, 'Bouldering', ps.maxGrades[ClimbType.bouldering]),
-                ),
+                _compactInterestPill(context, 'Bouldering', ps.maxGrades[ClimbType.bouldering]),
               if (interested.contains(ClimbType.topRope))
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _interestItem(context, 'Top Rope', ps.maxGrades[ClimbType.topRope]),
-                ),
+                _compactInterestPill(context, 'Top Rope', ps.maxGrades[ClimbType.topRope]),
               if (interested.contains(ClimbType.lead))
-                _interestItem(context, 'Lead', ps.maxGrades[ClimbType.lead]),
+                _compactInterestPill(context, 'Lead', ps.maxGrades[ClimbType.lead]),
             ],
           ),
         const SizedBox(height: AppSpacing.sm),
@@ -659,4 +654,18 @@ Widget _interestItem(BuildContext context, String label, String? grade, {VoidCal
     return row;
   }
   return row;
+}
+
+Widget _compactInterestPill(BuildContext context, String label, String? grade) {
+  final ColorScheme scheme = Theme.of(context).colorScheme;
+  final String display = (grade == null || grade.isEmpty) ? label : '$label | $grade';
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(
+      color: scheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(999),
+      border: Border.all(color: scheme.outlineVariant, width: 1),
+    ),
+    child: Text(display, style: Theme.of(context).textTheme.bodySmall),
+  );
 }
