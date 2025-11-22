@@ -14,6 +14,7 @@ import '../../models/session.dart';
 import '../widgets/gym_picker.dart';
 import '../../models/activity.dart';
 import 'active_session_screen.dart';
+import '../widgets/v_grade_scrubber.dart';
 
 final StateProvider<bool> _profileEditingProvider =
     StateProvider<bool>((StateProviderRef<bool> ref) => false);
@@ -444,25 +445,9 @@ class _InterestsAndMax extends ConsumerStatefulWidget {
 }
 
 class _InterestsAndMaxState extends ConsumerState<_InterestsAndMax> {
-  late final TextEditingController _boulderCtrl;
-  late final TextEditingController _topCtrl;
-  late final TextEditingController _leadCtrl;
-
   @override
   void initState() {
     super.initState();
-    final ProfileState ps = ref.read(profileProvider);
-    _boulderCtrl = TextEditingController(text: ps.maxGrades[ClimbType.bouldering] ?? '');
-    _topCtrl = TextEditingController(text: ps.maxGrades[ClimbType.topRope] ?? '');
-    _leadCtrl = TextEditingController(text: ps.maxGrades[ClimbType.lead] ?? '');
-  }
-
-  @override
-  void dispose() {
-    _boulderCtrl.dispose();
-    _topCtrl.dispose();
-    _leadCtrl.dispose();
-    super.dispose();
   }
 
   @override
@@ -489,86 +474,189 @@ class _InterestsAndMaxState extends ConsumerState<_InterestsAndMax> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        if (widget.editing)
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: <Widget>[
-              _interestChip(context, 'Bouldering', interested.contains(ClimbType.bouldering), () => vm.toggleInterest(ClimbType.bouldering)),
-              _interestChip(context, 'Top Rope', interested.contains(ClimbType.topRope), () => vm.toggleInterest(ClimbType.topRope)),
-              _interestChip(context, 'Lead', interested.contains(ClimbType.lead), () => vm.toggleInterest(ClimbType.lead)),
-            ],
-          )
-        else
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+        if (!widget.editing)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               if (interested.contains(ClimbType.bouldering))
-                _interestReadOnlyPill(context, 'Bouldering', ps.maxGrades[ClimbType.bouldering]),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _interestItem(context, 'Bouldering', ps.maxGrades[ClimbType.bouldering]),
+                ),
               if (interested.contains(ClimbType.topRope))
-                _interestReadOnlyPill(context, 'Top Rope', ps.maxGrades[ClimbType.topRope]),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _interestItem(context, 'Top Rope', ps.maxGrades[ClimbType.topRope]),
+                ),
               if (interested.contains(ClimbType.lead))
-                _interestReadOnlyPill(context, 'Lead', ps.maxGrades[ClimbType.lead]),
+                _interestItem(context, 'Lead', ps.maxGrades[ClimbType.lead]),
             ],
           ),
         const SizedBox(height: AppSpacing.sm),
         if (widget.editing)
-          Wrap(
-            spacing: AppSpacing.md,
-            runSpacing: AppSpacing.sm,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              if (interested.contains(ClimbType.bouldering))
-                _maxField(context, label: 'Max V', controller: _boulderCtrl, enabled: widget.editing, onChanged: (String v) => vm.setMaxGrade(ClimbType.bouldering, v)),
-              if (interested.contains(ClimbType.topRope))
-                _maxField(context, label: 'Max YDS (TR)', controller: _topCtrl, enabled: widget.editing, onChanged: (String v) => vm.setMaxGrade(ClimbType.topRope, v)),
-              if (interested.contains(ClimbType.lead))
-                _maxField(context, label: 'Max YDS (Lead)', controller: _leadCtrl, enabled: widget.editing, onChanged: (String v) => vm.setMaxGrade(ClimbType.lead, v)),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _interestItem(
+                  context,
+                  'Bouldering',
+                  ps.maxGrades[ClimbType.bouldering],
+                  selected: interested.contains(ClimbType.bouldering),
+                  onToggle: () => vm.toggleInterest(ClimbType.bouldering),
+                  onTap: () {
+                    if (!interested.contains(ClimbType.bouldering)) vm.toggleInterest(ClimbType.bouldering);
+                    _pickMaxGrade(context, ClimbType.bouldering, (String v) => vm.setMaxGrade(ClimbType.bouldering, v));
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _interestItem(
+                  context,
+                  'Top Rope',
+                  ps.maxGrades[ClimbType.topRope],
+                  selected: interested.contains(ClimbType.topRope),
+                  onToggle: () => vm.toggleInterest(ClimbType.topRope),
+                  onTap: () {
+                    if (!interested.contains(ClimbType.topRope)) vm.toggleInterest(ClimbType.topRope);
+                    _pickMaxGrade(context, ClimbType.topRope, (String v) => vm.setMaxGrade(ClimbType.topRope, v));
+                  },
+                ),
+              ),
+              _interestItem(
+                context,
+                'Lead',
+                ps.maxGrades[ClimbType.lead],
+                selected: interested.contains(ClimbType.lead),
+                onToggle: () => vm.toggleInterest(ClimbType.lead),
+                onTap: () {
+                  if (!interested.contains(ClimbType.lead)) vm.toggleInterest(ClimbType.lead);
+                  _pickMaxGrade(context, ClimbType.lead, (String v) => vm.setMaxGrade(ClimbType.lead, v));
+                },
+              ),
             ],
           ),
       ],
     );
   }
 
-  Widget _interestChip(BuildContext context, String text, bool selected, VoidCallback onTap) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: widget.editing ? onTap : null,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: selected ? scheme.primary : scheme.outlineVariant, width: 2),
-        ),
-        child: Text(text, style: Theme.of(context).textTheme.bodySmall),
-      ),
-    );
-  }
+  // removed unused _interestChip
 
-  Widget _maxField(BuildContext context, {required String label, required TextEditingController controller, required bool enabled, required ValueChanged<String> onChanged}) {
-    return SizedBox(
-      width: 140,
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(labelText: label),
-        enabled: enabled,
-        onChanged: onChanged,
-      ),
+  Future<void> _pickMaxGrade(BuildContext context, ClimbType type, ValueChanged<String> onPicked) async {
+    final Widget picker = (type == ClimbType.bouldering)
+        ? VGradePopupScrubber(
+            onPicked: (Grade g) {
+              onPicked(g.value);
+              Navigator.of(context).pop();
+            },
+            vertical: true,
+          )
+        : YdsGradePopupScrubber(
+            onPicked: (Grade g) {
+              onPicked(g.value);
+              Navigator.of(context).pop();
+            },
+            vertical: true,
+          );
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (BuildContext ctx) {
+        final ColorScheme scheme = Theme.of(ctx).colorScheme;
+        final double height = MediaQuery.of(ctx).size.height * 0.6;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.md),
+            child: SizedBox(
+              height: height,
+              child: Column(
+                children: <Widget>[
+                  const SizedBox(height: 4),
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: scheme.outlineVariant,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text('Select grade', style: Theme.of(ctx).textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  Expanded(child: picker),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
 
-Widget _interestReadOnlyPill(BuildContext context, String label, String? grade) {
+Widget _interestItem(BuildContext context, String label, String? grade, {VoidCallback? onTap, VoidCallback? onToggle, bool selected = true}) {
   final ColorScheme scheme = Theme.of(context).colorScheme;
-  final String display = grade == null || grade.isEmpty ? label : '$label | $grade';
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+  final bool hasGrade = grade != null && grade.isNotEmpty;
+  final TextStyle gradeStyle = Theme.of(context).textTheme.bodySmall!.copyWith(
+        color: hasGrade ? null : scheme.primary,
+        fontStyle: hasGrade ? null : FontStyle.italic,
+      );
+  final Widget row = Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
     decoration: BoxDecoration(
-      color: scheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(999),
-      border: Border.all(color: scheme.outlineVariant, width: 2),
+      color: scheme.surfaceContainerHighest.withValues(alpha: selected ? 1.0 : 0.6),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: scheme.outlineVariant, width: 1.5),
     ),
-    child: Text(display, style: Theme.of(context).textTheme.bodySmall),
+    child: Row(
+      children: <Widget>[
+        Expanded(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onToggle,
+            child: Row(
+              children: <Widget>[
+                Text(label, style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
+          ),
+        ),
+        Container(
+          width: 1,
+          height: 16,
+          color: scheme.outlineVariant,
+          margin: const EdgeInsets.symmetric(horizontal: 12),
+        ),
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Row(
+              children: <Widget>[
+                Text(
+                  selected ? (hasGrade ? grade : 'Tap to set') : 'Hidden',
+                  style: selected ? gradeStyle : Theme.of(context).textTheme.bodySmall!.copyWith(color: scheme.outline),
+                ),
+                if (onTap != null) ...<Widget>[
+                  const SizedBox(width: 6),
+                  Icon(defaultTargetPlatform == TargetPlatform.iOS ? CupertinoIcons.pencil : Icons.edit_outlined, size: 14, color: scheme.outline),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    ),
   );
+  if (onTap == null) return row;
+  if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
+    return row;
+  }
+  return row;
 }

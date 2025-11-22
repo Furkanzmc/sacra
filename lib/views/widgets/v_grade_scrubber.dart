@@ -10,11 +10,13 @@ class VGradePopupScrubber extends StatefulWidget {
     required this.onPicked,
     this.grades,
     this.trailing,
+    this.vertical = false,
   });
 
   final void Function(Grade grade) onPicked;
   final List<String>? grades;
   final Widget? trailing;
+  final bool vertical;
 
   @override
   State<VGradePopupScrubber> createState() => _VGradePopupScrubberState();
@@ -33,6 +35,29 @@ class _VGradePopupScrubberState extends State<VGradePopupScrubber> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.vertical) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: _grades
+                    .map((String g) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _FullWidthSegment(
+                            label: g,
+                            onPressed: () => _onPick(g),
+                          ),
+                        ))
+                    .toList(),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
     return Builder(
       builder: (BuildContext context) {
         return Column(
@@ -104,11 +129,13 @@ class YdsGradePopupScrubber extends StatefulWidget {
     required this.onPicked,
     this.grades,
     this.trailing,
+    this.vertical = false,
   });
 
   final void Function(Grade grade) onPicked;
   final List<String>? grades;
   final Widget? trailing;
+  final bool vertical;
 
   @override
   State<YdsGradePopupScrubber> createState() => _YdsGradePopupScrubberState();
@@ -126,6 +153,29 @@ class _YdsGradePopupScrubberState extends State<YdsGradePopupScrubber> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.vertical) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: _grades
+                    .map((String g) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _FullWidthSegment(
+                            label: g,
+                            onPressed: () => _onPick(g),
+                          ),
+                        ))
+                    .toList(),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
     return Builder(
       builder: (BuildContext context) {
         return Column(
@@ -188,6 +238,51 @@ class _YdsGradePopupScrubberState extends State<YdsGradePopupScrubber> {
       });
     }
     widget.onPicked(Grade(system: GradeSystem.yds, value: label));
+  }
+}
+
+class _FullWidthSegment extends StatelessWidget {
+  const _FullWidthSegment({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
+      return CupertinoButton(
+        padding: EdgeInsets.zero,
+        onPressed: onPressed,
+        child: Container(
+          width: double.infinity,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+          decoration: BoxDecoration(
+            border: Border.all(color: CupertinoColors.separator.resolveFrom(context)),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(label, textAlign: TextAlign.center),
+        ),
+      );
+    }
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: double.infinity,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+          decoration: BoxDecoration(
+            border: Border.all(color: scheme.outlineVariant),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(label, textAlign: TextAlign.center),
+        ),
+      ),
+    );
   }
 }
 
