@@ -127,17 +127,6 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-              if (isEditing) ...<Widget>[
-                const SizedBox(height: AppSpacing.sm),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: AdaptiveFilledButton.icon(
-                    onPressed: () => ref.read(_profileEditingProvider.notifier).state = false,
-                    icon: Icon(defaultTargetPlatform == TargetPlatform.iOS ? CupertinoIcons.check_mark_circled_solid : Icons.check_circle),
-                    label: const Text('Done'),
-                  ),
-                ),
-              ],
               const SizedBox(height: AppSpacing.sm),
               Row(
                 children: <Widget>[
@@ -161,6 +150,17 @@ class ProfileScreen extends ConsumerWidget {
               Text('Interests & Max', style: AppTextStyles.title),
               const SizedBox(height: AppSpacing.sm),
               _InterestsAndMax(editing: isEditing),
+              if (isEditing) ...<Widget>[
+                const SizedBox(height: AppSpacing.sm),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: AdaptiveFilledButton.icon(
+                    onPressed: () => ref.read(_profileEditingProvider.notifier).state = false,
+                    icon: Icon(defaultTargetPlatform == TargetPlatform.iOS ? CupertinoIcons.check_mark_circled_solid : Icons.check_circle),
+                    label: const Text('Done'),
+                  ),
+                ),
+              ],
               const SizedBox(height: AppSpacing.lg),
               // Week controls and summary moved from Home to Profile
               WeekHeader(
