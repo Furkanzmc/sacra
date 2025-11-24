@@ -34,7 +34,6 @@ class ActivityList extends ConsumerWidget {
         final String time = adaptiveFormatTime(context, recorded);
         final int count = s.attempts.length;
         final _TypeColors tc = _colorsForType(s.climbType, scheme);
-        final String? emoji = _ratingEmoji(s.rating);
         return AdaptiveCard(
           padding: const EdgeInsets.all(AppSpacing.md),
           color: tc.container,
@@ -56,10 +55,6 @@ class ActivityList extends ConsumerWidget {
                             const SizedBox(width: 8),
                           ],
                           Text(_activityTypeLabel(s.climbType), style: AppTextStyles.title.copyWith(color: tc.onContainer)),
-                          if (emoji != null) ...<Widget>[
-                            const SizedBox(width: 6),
-                            Text(emoji),
-                          ],
                         ],
                       ),
                       const SizedBox(height: 4),
@@ -336,22 +331,5 @@ int _ydsIndex(String y) {
   ];
   final int i = order.indexOf(y);
   return i < 0 ? -1 : i;
-}
-
-String? _ratingEmoji(int? rating) {
-  switch (rating) {
-    case 1:
-      return '😫';
-    case 2:
-      return '😕';
-    case 3:
-      return '😐';
-    case 4:
-      return '🙂';
-    case 5:
-      return '😄';
-    default:
-      return null;
-  }
 }
 

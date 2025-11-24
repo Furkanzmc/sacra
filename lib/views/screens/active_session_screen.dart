@@ -155,6 +155,89 @@ class _MountainHeightViewState extends State<_MountainHeightView> {
   }
 }
 
+class _RatingPickerButton extends ConsumerWidget {
+  const _RatingPickerButton();
+
+  String? _emojiFor(int? rating) {
+    switch (rating) {
+      case 1:
+        return '😫';
+      case 2:
+        return '😕';
+      case 3:
+        return '😐';
+      case 4:
+        return '🙂';
+      case 5:
+        return '😄';
+      default:
+        return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final Session? s =
+        ref.watch(sessionLogProvider).activeSession ?? ref.watch(sessionLogProvider).editingSession;
+    final int? rating = s?.rating;
+    final String? emoji = _emojiFor(rating);
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+
+    Widget pill({required Widget child}) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: scheme.outlineVariant, width: 1),
+        ),
+        child: child,
+      );
+    }
+
+    return PopupMenuButton<int>(
+      tooltip: 'Rate session',
+      onSelected: (int value) {
+        if (value == 0) {
+          ref.read(sessionLogProvider.notifier).updateSessionRating(null);
+        } else {
+          ref.read(sessionLogProvider.notifier).updateSessionRating(value);
+        }
+      },
+      itemBuilder: (BuildContext context) => <PopupMenuEntry<int>>[
+        PopupMenuItem<int>(value: 5, child: const Text('😄 Great')),
+        PopupMenuItem<int>(value: 4, child: const Text('🙂 Good')),
+        PopupMenuItem<int>(value: 3, child: const Text('😐 Okay')),
+        PopupMenuItem<int>(value: 2, child: const Text('😕 Tough')),
+        PopupMenuItem<int>(value: 1, child: const Text('😫 Brutal')),
+        const PopupMenuDivider(),
+        PopupMenuItem<int>(
+          value: 0,
+          child: Row(
+            children: const <Widget>[
+              Icon(Icons.clear, size: 18),
+              SizedBox(width: 8),
+              Text('Clear rating'),
+            ],
+          ),
+        ),
+      ],
+      child: pill(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const Icon(Icons.emoji_emotions_outlined, size: 18),
+            const SizedBox(width: 6),
+            Text(emoji ?? 'Rate',
+                style:
+                    Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _RightPointerPainter extends CustomPainter {
   _RightPointerPainter({required this.color, this.tipYWithin, this.visualHeight});
 
@@ -606,36 +689,8 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
             children: <Widget>[
               // Notes toggle button (uses provider logic)
               _SessionNotesButton(),
-              // Session rating emojis
-              Consumer(
-                builder: (BuildContext context, WidgetRef ref, _) {
-                  final Session? s = ref.watch(sessionLogProvider).activeSession ?? ref.watch(sessionLogProvider).editingSession;
-                  final int? rating = s?.rating;
-                  Widget buildEmoji(int val, String emoji) {
-                    final bool sel = rating == val;
-                    return GestureDetector(
-                      onTap: () => ref.read(sessionLogProvider.notifier).updateSessionRating(val),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: Text(
-                          emoji,
-                          style: TextStyle(fontSize: sel ? 20 : 18),
-                        ),
-                      ),
-                    );
-                  }
-                  return Row(
-                    children: <Widget>[
-                      const SizedBox(width: 8),
-                      buildEmoji(1, '😫'),
-                      buildEmoji(2, '😕'),
-                      buildEmoji(3, '😐'),
-                      buildEmoji(4, '🙂'),
-                      buildEmoji(5, '😄'),
-                    ],
-                  );
-                },
-              ),
+              const SizedBox(width: 8),
+              const _RatingPickerButton(),
               // Home gym picker button
               Consumer(
                 builder: (BuildContext context, WidgetRef ref, _) {

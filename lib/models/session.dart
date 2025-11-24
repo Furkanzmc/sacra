@@ -185,6 +185,7 @@ class Session {
     List<ClimbAttempt>? attempts,
     String? notes,
     int? rating,
+    bool clearRating = false,
   }) {
     return Session(
       id: id,
@@ -194,7 +195,7 @@ class Session {
       gymName: gymName ?? this.gymName,
       attempts: attempts ?? this.attempts,
       notes: notes ?? this.notes,
-      rating: rating ?? this.rating,
+      rating: clearRating ? null : (rating ?? this.rating),
     );
   }
 }

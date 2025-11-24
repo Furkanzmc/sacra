@@ -510,7 +510,6 @@ class _ActivitiesSheetState extends State<_ActivitiesSheet> {
                             final String time = adaptiveFormatTime(context, recorded);
                             final int count = s.attempts.length;
                             final _SheetTypeColors tc = _sheetColorsForType(s.climbType, scheme);
-                            final String? emoji = _ratingEmojiLocal(s.rating);
                             return AdaptiveCard(
                               padding: const EdgeInsets.all(AppSpacing.md),
                               color: tc.container,
@@ -527,10 +526,6 @@ class _ActivitiesSheetState extends State<_ActivitiesSheet> {
                                             children: <Widget>[
                                               Text(_activityTypeLabelLocal(s.climbType),
                                                   style: AppTextStyles.title.copyWith(color: tc.onContainer)),
-                                              if (emoji != null) ...<Widget>[
-                                                const SizedBox(width: 6),
-                                                Text(emoji),
-                                              ],
                                             ],
                                           ),
                                           const SizedBox(height: 4),
@@ -684,22 +679,7 @@ String _activityTypeLabelLocal(ClimbType t) {
   }
 }
 
-String? _ratingEmojiLocal(int? rating) {
-  switch (rating) {
-    case 1:
-      return '😫';
-    case 2:
-      return '😕';
-    case 3:
-      return '😐';
-    case 4:
-      return '🙂';
-    case 5:
-      return '😄';
-    default:
-      return null;
-  }
-}
+// rating emoji intentionally not shown in lists
 
 class _LabeledField extends StatelessWidget {
   const _LabeledField({required this.label, required this.child, this.icon});
