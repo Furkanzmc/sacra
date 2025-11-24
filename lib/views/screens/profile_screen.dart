@@ -68,12 +68,23 @@ class ProfileScreen extends ConsumerWidget {
             children: <Widget>[
               // Background: Profile details
               SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(
-                  AppSpacing.md,
-                  AppSpacing.md,
-                  AppSpacing.md,
-                  AppSpacing.md + MediaQuery.of(context).padding.bottom,
-                ),
+                padding: () {
+                  final double bottomInset = MediaQuery.of(context).padding.bottom;
+                  // Match the collapsed sheet height so background content can scroll fully above it
+                  final double compactHeaderExtent = kMinInteractiveDimension + AppSpacing.md * 2 + AppSpacing.sm;
+                  final double collapsedSheetHeight = AppSpacing.md +
+                      _ActivitiesSheet._handleThickness +
+                      AppSpacing.sm +
+                      compactHeaderExtent +
+                      AppSpacing.md +
+                      bottomInset;
+                  return EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    collapsedSheetHeight,
+                  );
+                }(),
                 child: Container(
                   key: _profileKey,
                   child: Column(
