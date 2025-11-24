@@ -24,9 +24,12 @@ final StateProvider<DateTime> _profileWeekStartProvider =
     StateProvider<DateTime>((StateProviderRef<DateTime> ref) => _startOfWeek(DateTime.now()));
 final StateProvider<ClimbType?> _profileTypeFilterProvider =
     StateProvider<ClimbType?>((StateProviderRef<ClimbType?> ref) => null);
+final StateProvider<double?> _profileContentHeightProvider =
+    StateProvider<double?>((StateProviderRef<double?> ref) => null);
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
+  static final GlobalKey _profileKey = GlobalKey();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -61,15 +64,22 @@ class ProfileScreen extends ConsumerWidget {
       body: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: Responsive.constrainedWidth(context)),
-          child: ListView(
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.md,
-              AppSpacing.md,
-              AppSpacing.md + MediaQuery.of(context).padding.bottom,
-            ),
+          child: Stack(
             children: <Widget>[
-              Row(
+              // Background: Profile details
+              SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.md + MediaQuery.of(context).padding.bottom,
+                ),
+                child: Container(
+                  key: _profileKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Row(
                 children: <Widget>[
                   _ProfilePhoto(
                     photoUrl: state.photoUrl,
@@ -132,79 +142,101 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              if (!isEditing)
-                Row(
-                  children: <Widget>[
-                    TextButton(
-                      onPressed: () {
-                        _showBuddiesSheet(context, 'Followers', state.buddies);
-                      },
-                      child: Text('Followers (${state.buddies.length})'),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    TextButton(
-                      onPressed: () {
-                        _showBuddiesSheet(context, 'Following', state.buddies);
-                      },
-                      child: Text('Following (${state.buddies.length})'),
-                    ),
-                  ],
-                ),
-              const SizedBox(height: AppSpacing.lg),
-              // Interests & Max difficulties
-              Text('Interests & Max', style: AppTextStyles.title),
-              const SizedBox(height: AppSpacing.sm),
-              _InterestsAndMax(editing: isEditing),
-              if (isEditing) ...<Widget>[
-                const SizedBox(height: AppSpacing.sm),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: AdaptiveFilledButton.icon(
-                    onPressed: () => ref.read(_profileEditingProvider.notifier).state = false,
-                    icon: Icon(defaultTargetPlatform == TargetPlatform.iOS ? CupertinoIcons.check_mark_circled_solid : Icons.check_circle),
-                    label: const Text('Done'),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      if (!isEditing)
+                        Row(
+                          children: <Widget>[
+                            TextButton(
+                              onPressed: () {
+                                _showBuddiesSheet(context, 'Followers', state.buddies);
+                              },
+                              child: Text('Followers (${state.buddies.length})'),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            TextButton(
+                              onPressed: () {
+                                _showBuddiesSheet(context, 'Following', state.buddies);
+                              },
+                              child: Text('Following (${state.buddies.length})'),
+                            ),
+                          ],
+                        ),
+                      const SizedBox(height: AppSpacing.lg),
+                      // Interests & Max difficulties
+                      Text('Interests & Max', style: AppTextStyles.title),
+                      const SizedBox(height: AppSpacing.sm),
+                      _InterestsAndMax(editing: isEditing),
+                      if (isEditing) ...<Widget>[
+                        const SizedBox(height: AppSpacing.sm),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: AdaptiveFilledButton.icon(
+                            onPressed: () => ref.read(_profileEditingProvider.notifier).state = false,
+                            icon: Icon(defaultTargetPlatform == TargetPlatform.iOS ? CupertinoIcons.check_mark_circled_solid : Icons.check_circle),
+                            label: const Text('Done'),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: AppSpacing.lg),
+                      // Social accounts
+                      if (isEditing || ref.watch(profileProvider).socialLinks.isNotEmpty) ...<Widget>[
+                        Text('Social', style: AppTextStyles.title),
+                        const SizedBox(height: AppSpacing.sm),
+                        _SocialLinks(editing: isEditing),
+                        const SizedBox(height: AppSpacing.lg),
+                      ],
+                      // Note: Weekly summary and activities moved to the draggable sheet overlay
+                    ],
                   ),
                 ),
-              ],
-              const SizedBox(height: AppSpacing.lg),
-              // Social accounts
-              if (isEditing || ref.watch(profileProvider).socialLinks.isNotEmpty) ...<Widget>[
-                Text('Social', style: AppTextStyles.title),
-                const SizedBox(height: AppSpacing.sm),
-                _SocialLinks(editing: isEditing),
-                const SizedBox(height: AppSpacing.lg),
-              ],
-              if (!isEditing) ...<Widget>[
-                const SizedBox(height: AppSpacing.lg),
-                // Week controls and summary moved from Home to Profile
-                WeekHeader(
+              ),
+              // After first frame, measure and store profile content height
+              Builder(
+                builder: (BuildContext context) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    final BuildContext? c = _profileKey.currentContext;
+                    if (c != null) {
+                      final Size? sz = c.size;
+                      if (sz != null) {
+                        final double? current = ref.read(_profileContentHeightProvider);
+                        if (current == null || (current - sz.height).abs() > 1.0) {
+                          ref.read(_profileContentHeightProvider.notifier).state = sz.height;
+                        }
+                      }
+                    }
+                  });
+                  return const SizedBox.shrink();
+                },
+              ),
+              if (!isEditing)
+                _ActivitiesSheet(
                   weekStart: weekStart,
-                  onChange: (DateTime next) => ref.read(_profileWeekStartProvider.notifier).state = _startOfWeek(next),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                WeeklySummaryCard(
-                  sessions: all,
-                  weekStart: weekStart,
+                  allSessions: all,
+                  weekSessions: weekSessions,
                   selectedType: selectedType,
                   onTypeSelected: (ClimbType? t) => ref.read(_profileTypeFilterProvider.notifier).state = t,
+                  onOpenSession: (Session s) {
+                    final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
+                    vm.editPastSession(s.id);
+                    Navigator.of(context).push(
+                      MaterialPageRoute<Widget>(builder: (_) => ActiveSessionScreen(session: s)),
+                    );
+                  },
+                  onWeekChange: (DateTime next) =>
+                      ref.read(_profileWeekStartProvider.notifier).state = _startOfWeek(next),
+                  initialCandidateFraction: () {
+                    final double screenH = MediaQuery.of(context).size.height;
+                    final double twoThirds = 2 / 3;
+                    final double? ph = ref.watch(_profileContentHeightProvider);
+                    if (ph == null || ph <= 0 || ph >= screenH) {
+                      return twoThirds;
+                    }
+                    final double belowProfile = (1 - (ph / screenH)).clamp(0.1, 0.95);
+                    // Start either at 2/3 or just below profile, whichever leaves more profile visible
+                    return belowProfile < twoThirds ? belowProfile : twoThirds;
+                  }(),
                 ),
-                const SizedBox(height: AppSpacing.lg),
-                SizedBox(
-                  height: 400,
-                  child: ActivityList(
-                    items: weekSessions.map((Session s) => ActivityListItem(session: s)).toList(),
-                    onTap: (Session s) {
-                      final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
-                      vm.editPastSession(s.id);
-                      Navigator.of(context).push(
-                        MaterialPageRoute<Widget>(builder: (_) => ActiveSessionScreen(session: s)),
-                      );
-                    },
-                  ),
-                ),
-              ],
             ],
           ),
         ),
@@ -258,6 +290,403 @@ class _ProfilePhoto extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+// Draggable activities + weekly stats sheet that can cover profile when expanded
+class _ActivitiesSheet extends StatefulWidget {
+  const _ActivitiesSheet({
+    required this.weekStart,
+    required this.allSessions,
+    required this.weekSessions,
+    required this.selectedType,
+    required this.onTypeSelected,
+    required this.onOpenSession,
+    required this.onWeekChange,
+    required this.initialCandidateFraction,
+  });
+  final DateTime weekStart;
+  final List<Session> allSessions;
+  final List<Session> weekSessions;
+  final ClimbType? selectedType;
+  final ValueChanged<ClimbType?> onTypeSelected;
+  final ValueChanged<Session> onOpenSession;
+  final ValueChanged<DateTime> onWeekChange;
+  final double initialCandidateFraction;
+
+  static const double _handleThickness = 5.0;
+  static const double _handleWidth = 36.0;
+  static const double _cornerRadius = 16.0;
+  static const double _weeklySummaryCardHeight = 140.0; // Must match WeeklySummaryCard's SizedBox height
+
+  @override
+  State<_ActivitiesSheet> createState() => _ActivitiesSheetState();
+}
+
+class _ActivitiesSheetState extends State<_ActivitiesSheet> {
+  late final DraggableScrollableController _dragCtrl;
+  @override
+  void initState() {
+    super.initState();
+    _dragCtrl = DraggableScrollableController();
+    _dragCtrl.addListener(() {
+      if (!mounted) return;
+      // Defer state updates to the end of the current frame to avoid re-entrant build/layout
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Size screen = MediaQuery.of(context).size;
+    final double bottomInset = MediaQuery.of(context).padding.bottom;
+    // Compact header extent (summary row + vertical padding)
+    final double compactHeaderExtent = kMinInteractiveDimension + AppSpacing.md * 2 + AppSpacing.sm;
+    // Compute collapsed height using a compact header (summary)
+    final double collapsedHeight =
+        // top padding
+        AppSpacing.md +
+        // handle
+        _ActivitiesSheet._handleThickness + AppSpacing.sm +
+        // compact header extent
+        compactHeaderExtent +
+        // outer padding and safe area
+        AppSpacing.md +
+        bottomInset;
+    final double minFractionComputed = (collapsedHeight / screen.height).clamp(0.2, 0.95);
+    // Pick starting size: either 2/3 (passed in) or just below profile content, but not below collapsed minimum
+    final double initialFraction = widget.initialCandidateFraction.clamp(minFractionComputed, 1.0);
+    // Allow dragging lower than initial down to minFractionComputed
+    final double minFraction = minFractionComputed;
+
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+
+    return DraggableScrollableSheet(
+      controller: _dragCtrl,
+      minChildSize: minFraction,
+      initialChildSize: initialFraction,
+      maxChildSize: 1.0,
+      snap: true,
+      builder: (BuildContext context, ScrollController listController) {
+        bool isCompact = false;
+        try {
+          final double sz = _dragCtrl.size;
+          // Treat sizes within ~5% of minChildSize as collapsed to ensure summary appears reliably
+          isCompact = (sz - minFraction) <= 0.05;
+        } catch (_) {
+          // Controller not yet attached; default to full header.
+          isCompact = false;
+        }
+        void applyHeaderPan(DragUpdateDetails details) {
+          final double delta = details.delta.dy;
+          if (delta == 0) return;
+          try {
+            final double current = _dragCtrl.size;
+            final double newSize = (current - delta / screen.height).clamp(minFraction, 1.0);
+            if (newSize != current) {
+              _dragCtrl.jumpTo(newSize);
+            }
+          } catch (_) {/* ignore if not attached */}
+        }
+        // Compute weekly stats for compact summary
+        int total = 0, boulder = 0, ropeTop = 0, ropeLead = 0;
+        final DateTime weekEnd = _endOfWeek(widget.weekStart);
+        for (final Session s in widget.allSessions) {
+          final DateTime dt = s.endTime ?? s.startTime;
+          final DateTime d = DateTime(dt.year, dt.month, dt.day);
+          if (!d.isBefore(widget.weekStart) && !d.isAfter(weekEnd)) {
+            total += 1;
+            switch (s.climbType) {
+              case ClimbType.bouldering:
+                boulder++;
+                break;
+              case ClimbType.topRope:
+                ropeTop++;
+                break;
+              case ClimbType.lead:
+                ropeLead++;
+                break;
+            }
+          }
+        }
+        final double fullHeaderExtent = kMinInteractiveDimension + AppSpacing.sm + _ActivitiesSheet._weeklySummaryCardHeight + AppSpacing.md * 3 + AppSpacing.sm;
+        return Material(
+          elevation: 8,
+          color: scheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(_ActivitiesSheet._cornerRadius)),
+          child: SafeArea(
+            top: false,
+            bottom: true,
+            child: CustomScrollView(
+              controller: listController,
+              slivers: <Widget>[
+              // Handle
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.sm),
+                  child: Center(
+                    child: Container(
+                      width: _ActivitiesSheet._handleWidth,
+                      height: _ActivitiesSheet._handleThickness,
+                      decoration: BoxDecoration(
+                        color: scheme.outlineVariant,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              // Draggable header (pinned), swaps compact/full
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _SheetHeaderDelegate(
+                  minExtentHeight: isCompact ? compactHeaderExtent : fullHeaderExtent,
+                  maxExtentHeight: isCompact ? compactHeaderExtent : fullHeaderExtent,
+                  builder: (BuildContext context) {
+                    return GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onPanUpdate: applyHeaderPan,
+                      child: SizedBox.expand(
+                        child: Container(
+                          color: scheme.surface,
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                          child: isCompact
+                              ? _CompactWeeklySummary(total: total, boulder: boulder, ropeTop: ropeTop, ropeLead: ropeLead)
+                              : Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: <Widget>[
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: WeekHeader(
+                                        weekStart: widget.weekStart,
+                                        onChange: widget.onWeekChange,
+                                      ),
+                                    ),
+                                    const SizedBox(height: AppSpacing.sm),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                                      child: WeeklySummaryCard(
+                                        sessions: widget.allSessions,
+                                        weekStart: widget.weekStart,
+                                        selectedType: widget.selectedType,
+                                        onTypeSelected: widget.onTypeSelected,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // Activities list (hidden when compact)
+              if (!isCompact)
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, AppSpacing.md),
+                  sliver: widget.weekSessions.isEmpty
+                      ? const SliverToBoxAdapter(child: Center(child: Text('No sessions')))
+                      : SliverList.separated(
+                          itemCount: widget.weekSessions.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+                          itemBuilder: (BuildContext context, int index) {
+                            final Session s = widget.weekSessions[index];
+                            final DateTime recorded = s.endTime ?? s.startTime;
+                            final String date = adaptiveFormatDate(context, recorded);
+                            final String time = adaptiveFormatTime(context, recorded);
+                            final int count = s.attempts.length;
+                            final _SheetTypeColors tc = _sheetColorsForType(s.climbType, scheme);
+                            final String? emoji = _ratingEmojiLocal(s.rating);
+                            return AdaptiveCard(
+                              padding: const EdgeInsets.all(AppSpacing.md),
+                              color: tc.container,
+                              onTap: () => widget.onOpenSession(s),
+                              child: DefaultTextStyle.merge(
+                                style: TextStyle(color: tc.onContainer),
+                                child: Row(
+                                  children: <Widget>[
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: <Widget>[
+                                          Row(
+                                            children: <Widget>[
+                                              Text(_activityTypeLabelLocal(s.climbType),
+                                                  style: AppTextStyles.title.copyWith(color: tc.onContainer)),
+                                              if (emoji != null) ...<Widget>[
+                                                const SizedBox(width: 6),
+                                                Text(emoji),
+                                              ],
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: <Widget>[
+                                              Icon(tc.icon, size: 14, color: tc.onContainer),
+                                              const SizedBox(width: 6),
+                                              Text('$date • $time'),
+                                              const SizedBox(width: 8),
+                                              Text('• $count routes'),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(Icons.chevron_right, color: tc.onContainer),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                // Always reserve safe area bottom
+                const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SheetHeaderDelegate extends SliverPersistentHeaderDelegate {
+  _SheetHeaderDelegate({
+    required this.minExtentHeight,
+    required this.maxExtentHeight,
+    required this.builder,
+  });
+  final double minExtentHeight;
+  final double maxExtentHeight;
+  final WidgetBuilder builder;
+
+  @override
+  double get minExtent => minExtentHeight;
+
+  @override
+  double get maxExtent => maxExtentHeight;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => builder(context);
+
+  @override
+  bool shouldRebuild(covariant _SheetHeaderDelegate oldDelegate) {
+    return minExtentHeight != oldDelegate.minExtentHeight ||
+        maxExtentHeight != oldDelegate.maxExtentHeight ||
+        builder != oldDelegate.builder;
+  }
+}
+
+class _CompactWeeklySummary extends StatelessWidget {
+  const _CompactWeeklySummary({
+    required this.total,
+    required this.boulder,
+    required this.ropeTop,
+    required this.ropeLead,
+  });
+  final int total;
+  final int boulder;
+  final int ropeTop;
+  final int ropeLead;
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextStyle? labelStyle = Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600);
+    Widget pill(IconData icon, String text) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: scheme.outlineVariant, width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(icon, size: 14, color: scheme.onSurface),
+            const SizedBox(width: 6),
+            Text(text, style: labelStyle),
+          ],
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: kMinInteractiveDimension + AppSpacing.md,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(Icons.timeline, size: 18, color: scheme.onSurfaceVariant),
+              const SizedBox(width: 8),
+              Text('This week: $total', style: Theme.of(context).textTheme.bodyMedium),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: <Widget>[
+              pill(Icons.terrain, 'Bouldering $boulder'),
+              pill(Icons.safety_check, 'Top Rope $ropeTop'),
+              pill(Icons.route, 'Lead $ropeLead'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SheetTypeColors {
+  const _SheetTypeColors(this.container, this.onContainer, this.icon);
+  final Color container;
+  final Color onContainer;
+  final IconData icon;
+}
+
+_SheetTypeColors _sheetColorsForType(ClimbType t, ColorScheme scheme) {
+  switch (t) {
+    case ClimbType.bouldering:
+      return _SheetTypeColors(scheme.secondaryContainer, scheme.onSecondaryContainer, Icons.terrain);
+    case ClimbType.topRope:
+      return _SheetTypeColors(scheme.tertiaryContainer, scheme.onTertiaryContainer, Icons.safety_check);
+    case ClimbType.lead:
+      return _SheetTypeColors(scheme.primaryContainer, scheme.onPrimaryContainer, Icons.route);
+  }
+}
+
+String _activityTypeLabelLocal(ClimbType t) {
+  switch (t) {
+    case ClimbType.bouldering:
+      return 'Bouldering';
+    case ClimbType.topRope:
+      return 'Top Rope';
+    case ClimbType.lead:
+      return 'Leading';
+  }
+}
+
+String? _ratingEmojiLocal(int? rating) {
+  switch (rating) {
+    case 1:
+      return '😫';
+    case 2:
+      return '😕';
+    case 3:
+      return '😐';
+    case 4:
+      return '🙂';
+    case 5:
+      return '😄';
+    default:
+      return null;
   }
 }
 
