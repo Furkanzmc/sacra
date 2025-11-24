@@ -20,6 +20,7 @@ class ProfileState {
     required this.buddies,
     required this.interests,
     required this.maxGrades,
+    required this.socialLinks,
   });
 
   final String? photoUrl;
@@ -29,6 +30,8 @@ class ProfileState {
   final List<Buddy> buddies;
   final Set<ClimbType> interests;
   final Map<ClimbType, String> maxGrades;
+  // key -> value, e.g. instagram -> @handle, website -> https://...
+  final Map<String, String> socialLinks;
 
   ProfileState copyWith({
     String? photoUrl,
@@ -38,6 +41,7 @@ class ProfileState {
     List<Buddy>? buddies,
     Set<ClimbType>? interests,
     Map<ClimbType, String>? maxGrades,
+    Map<String, String>? socialLinks,
   }) {
     return ProfileState(
       photoUrl: photoUrl ?? this.photoUrl,
@@ -47,6 +51,7 @@ class ProfileState {
       buddies: buddies ?? this.buddies,
       interests: interests ?? this.interests,
       maxGrades: maxGrades ?? this.maxGrades,
+      socialLinks: socialLinks ?? this.socialLinks,
     );
   }
 }
@@ -70,6 +75,9 @@ class ProfileViewModel extends Notifier<ProfileState> {
         ClimbType.bouldering: 'V4',
         ClimbType.topRope: '5.11a',
         ClimbType.lead: '5.10b',
+      },
+      socialLinks: <String, String>{
+        // examples left empty by default
       },
     );
   }
@@ -114,6 +122,16 @@ class ProfileViewModel extends Notifier<ProfileState> {
     final Map<ClimbType, String> next = Map<ClimbType, String>.from(state.maxGrades);
     next[type] = grade;
     state = state.copyWith(maxGrades: next);
+  }
+
+  void updateSocialLink(String key, String? value) {
+    final Map<String, String> next = Map<String, String>.from(state.socialLinks);
+    if (value == null || value.trim().isEmpty) {
+      next.remove(key);
+    } else {
+      next[key] = value.trim();
+    }
+    state = state.copyWith(socialLinks: next);
   }
 }
 

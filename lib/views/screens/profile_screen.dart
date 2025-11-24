@@ -62,7 +62,12 @@ class ProfileScreen extends ConsumerWidget {
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: Responsive.constrainedWidth(context)),
           child: ListView(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.md + MediaQuery.of(context).padding.bottom,
+            ),
             children: <Widget>[
               Row(
                 children: <Widget>[
@@ -129,23 +134,24 @@ class ProfileScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.sm),
-              Row(
-                children: <Widget>[
-                  TextButton(
-                    onPressed: () {
-                      _showBuddiesSheet(context, 'Followers', state.buddies);
-                    },
-                    child: Text('Followers (${state.buddies.length})'),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  TextButton(
-                    onPressed: () {
-                      _showBuddiesSheet(context, 'Following', state.buddies);
-                    },
-                    child: Text('Following (${state.buddies.length})'),
-                  ),
-                ],
-              ),
+              if (!isEditing)
+                Row(
+                  children: <Widget>[
+                    TextButton(
+                      onPressed: () {
+                        _showBuddiesSheet(context, 'Followers', state.buddies);
+                      },
+                      child: Text('Followers (${state.buddies.length})'),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    TextButton(
+                      onPressed: () {
+                        _showBuddiesSheet(context, 'Following', state.buddies);
+                      },
+                      child: Text('Following (${state.buddies.length})'),
+                    ),
+                  ],
+                ),
               const SizedBox(height: AppSpacing.lg),
               // Interests & Max difficulties
               Text('Interests & Max', style: AppTextStyles.title),
@@ -163,32 +169,42 @@ class ProfileScreen extends ConsumerWidget {
                 ),
               ],
               const SizedBox(height: AppSpacing.lg),
-              // Week controls and summary moved from Home to Profile
-              WeekHeader(
-                weekStart: weekStart,
-                onChange: (DateTime next) => ref.read(_profileWeekStartProvider.notifier).state = _startOfWeek(next),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              WeeklySummaryCard(
-                sessions: all,
-                weekStart: weekStart,
-                selectedType: selectedType,
-                onTypeSelected: (ClimbType? t) => ref.read(_profileTypeFilterProvider.notifier).state = t,
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              SizedBox(
-                height: 400,
-                child: ActivityList(
-                  items: weekSessions.map((Session s) => ActivityListItem(session: s)).toList(),
-                  onTap: (Session s) {
-                    final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
-                    vm.editPastSession(s.id);
-                    Navigator.of(context).push(
-                      MaterialPageRoute<Widget>(builder: (_) => ActiveSessionScreen(session: s)),
-                    );
-                  },
+              // Social accounts
+              if (isEditing || ref.watch(profileProvider).socialLinks.isNotEmpty) ...<Widget>[
+                Text('Social', style: AppTextStyles.title),
+                const SizedBox(height: AppSpacing.sm),
+                _SocialLinks(editing: isEditing),
+                const SizedBox(height: AppSpacing.lg),
+              ],
+              if (!isEditing) ...<Widget>[
+                const SizedBox(height: AppSpacing.lg),
+                // Week controls and summary moved from Home to Profile
+                WeekHeader(
+                  weekStart: weekStart,
+                  onChange: (DateTime next) => ref.read(_profileWeekStartProvider.notifier).state = _startOfWeek(next),
                 ),
-              ),
+                const SizedBox(height: AppSpacing.sm),
+                WeeklySummaryCard(
+                  sessions: all,
+                  weekStart: weekStart,
+                  selectedType: selectedType,
+                  onTypeSelected: (ClimbType? t) => ref.read(_profileTypeFilterProvider.notifier).state = t,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                SizedBox(
+                  height: 400,
+                  child: ActivityList(
+                    items: weekSessions.map((Session s) => ActivityListItem(session: s)).toList(),
+                    onTap: (Session s) {
+                      final SessionLogViewModel vm = ref.read(sessionLogProvider.notifier);
+                      vm.editPastSession(s.id);
+                      Navigator.of(context).push(
+                        MaterialPageRoute<Widget>(builder: (_) => ActiveSessionScreen(session: s)),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -676,6 +692,153 @@ Widget _compactInterestPill(BuildContext context, String label, String? grade) {
   );
 }
 
+class _SocialLinks extends ConsumerStatefulWidget {
+  const _SocialLinks({required this.editing});
+  final bool editing;
+  @override
+  ConsumerState<_SocialLinks> createState() => _SocialLinksState();
+}
+
+class _SocialLinksState extends ConsumerState<_SocialLinks> {
+  late final TextEditingController _instagramCtrl;
+  late final TextEditingController _tiktokCtrl;
+  late final TextEditingController _youtubeCtrl;
+  late final TextEditingController _xCtrl;
+  late final TextEditingController _websiteCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    final Map<String, String> links = ref.read(profileProvider).socialLinks;
+    _instagramCtrl = TextEditingController(text: links['instagram'] ?? '');
+    _tiktokCtrl = TextEditingController(text: links['tiktok'] ?? '');
+    _youtubeCtrl = TextEditingController(text: links['youtube'] ?? '');
+    _xCtrl = TextEditingController(text: links['x'] ?? '');
+    _websiteCtrl = TextEditingController(text: links['website'] ?? '');
+  }
+
+  @override
+  void didUpdateWidget(covariant _SocialLinks oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final Map<String, String> links = ref.read(profileProvider).socialLinks;
+    if (_instagramCtrl.text != (links['instagram'] ?? '')) _instagramCtrl.text = links['instagram'] ?? '';
+    if (_tiktokCtrl.text != (links['tiktok'] ?? '')) _tiktokCtrl.text = links['tiktok'] ?? '';
+    if (_youtubeCtrl.text != (links['youtube'] ?? '')) _youtubeCtrl.text = links['youtube'] ?? '';
+    if (_xCtrl.text != (links['x'] ?? '')) _xCtrl.text = links['x'] ?? '';
+    if (_websiteCtrl.text != (links['website'] ?? '')) _websiteCtrl.text = links['website'] ?? '';
+  }
+
+  @override
+  void dispose() {
+    _instagramCtrl.dispose();
+    _tiktokCtrl.dispose();
+    _youtubeCtrl.dispose();
+    _xCtrl.dispose();
+    _websiteCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ProfileState ps = ref.watch(profileProvider);
+    final ProfileViewModel vm = ref.read(profileProvider.notifier);
+    if (!widget.editing) {
+      if (ps.socialLinks.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: ps.socialLinks.entries
+            .map((MapEntry<String, String> e) => _socialPill(context, _labelFor(e.key), e.value))
+            .toList(),
+      );
+    }
+    return Column(
+      children: <Widget>[
+        _LabeledField(
+          label: 'Instagram',
+          icon: Icons.camera_alt_outlined,
+          child: AdaptiveTextField(
+            controller: _instagramCtrl,
+            labelText: '@handle',
+            onChanged: (String v) => vm.updateSocialLink('instagram', v),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        _LabeledField(
+          label: 'TikTok',
+          icon: Icons.music_note,
+          child: AdaptiveTextField(
+            controller: _tiktokCtrl,
+            labelText: '@handle',
+            onChanged: (String v) => vm.updateSocialLink('tiktok', v),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        _LabeledField(
+          label: 'YouTube',
+          icon: Icons.ondemand_video_outlined,
+          child: AdaptiveTextField(
+            controller: _youtubeCtrl,
+            labelText: 'channel or url',
+            onChanged: (String v) => vm.updateSocialLink('youtube', v),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        _LabeledField(
+          label: 'X',
+          icon: Icons.alternate_email,
+          child: AdaptiveTextField(
+            controller: _xCtrl,
+            labelText: '@handle',
+            onChanged: (String v) => vm.updateSocialLink('x', v),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        _LabeledField(
+          label: 'Website',
+          icon: Icons.link,
+          child: AdaptiveTextField(
+            controller: _websiteCtrl,
+            labelText: 'https://example.com',
+            onChanged: (String v) => vm.updateSocialLink('website', v),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _labelFor(String key) {
+    switch (key) {
+      case 'instagram':
+        return 'Instagram';
+      case 'tiktok':
+        return 'TikTok';
+      case 'youtube':
+        return 'YouTube';
+      case 'x':
+        return 'X';
+      case 'website':
+        return 'Website';
+      default:
+        return key;
+    }
+  }
+}
+
+Widget _socialPill(BuildContext context, String label, String value) {
+  final ColorScheme scheme = Theme.of(context).colorScheme;
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(
+      color: scheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(999),
+      border: Border.all(color: scheme.outlineVariant, width: 1),
+    ),
+    child: Text('$label | $value', style: Theme.of(context).textTheme.bodySmall),
+  );
+}
 Future<void> _showBuddiesSheet(BuildContext context, String title, List<Buddy> buddies) async {
   await showModalBottomSheet<void>(
     context: context,
