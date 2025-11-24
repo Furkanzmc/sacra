@@ -28,8 +28,8 @@ final StateProvider<double?> _profileContentHeightProvider =
     StateProvider<double?>((StateProviderRef<double?> ref) => null);
 
 class ProfileScreen extends ConsumerWidget {
-  const ProfileScreen({super.key});
-  static final GlobalKey _profileKey = GlobalKey();
+  ProfileScreen({super.key});
+  final GlobalKey _profileKey = GlobalKey();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

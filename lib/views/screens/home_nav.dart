@@ -82,7 +82,7 @@ class _HomeNavState extends ConsumerState<HomeNav> {
               return CupertinoTabView(
                 navigatorKey: _profileKey,
                 routes: <String, WidgetBuilder>{
-                  '/': (_) => const ProfileScreen(),
+                  '/': (_) => ProfileScreen(),
                 },
               );
             }
@@ -98,7 +98,7 @@ class _HomeNavState extends ConsumerState<HomeNav> {
     final Widget shell = NavigationScope(
       setTab: (int i) => setState(() => _index = i),
       child: Scaffold(
-        body: _index == 0 ? const HomeScreen() : const ProfileScreen(),
+        body: _index == 0 ? const HomeScreen() : ProfileScreen(),
         bottomNavigationBar: NavigationBar(
           selectedIndex: _index,
           destinations: <NavigationDestination>[

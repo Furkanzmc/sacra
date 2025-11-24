@@ -21,7 +21,7 @@ class HomeScreen extends ConsumerWidget {
         IconButton(
           icon: const Icon(Icons.person),
           onPressed: () {
-            Navigator.of(context).push(MaterialPageRoute<Widget>(builder: (_) => const ProfileScreen()));
+            Navigator.of(context).push(MaterialPageRoute<Widget>(builder: (_) => ProfileScreen()));
           },
         ),
       ],
