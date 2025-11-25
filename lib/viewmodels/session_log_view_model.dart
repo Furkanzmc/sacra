@@ -11,21 +11,29 @@ class SessionLogState {
     required this.activeSession,
     required this.editingSession,
     required this.pastSessions,
+    required this.likesBySession,
+    required this.commentsBySession,
   });
 
   final Session? activeSession;
   final Session? editingSession;
   final List<Session> pastSessions;
+  final Map<String, Set<String>> likesBySession;
+  final Map<String, List<ActivityComment>> commentsBySession;
 
   SessionLogState copyWith({
     Session? activeSession,
     Session? editingSession,
     List<Session>? pastSessions,
+    Map<String, Set<String>>? likesBySession,
+    Map<String, List<ActivityComment>>? commentsBySession,
   }) {
     return SessionLogState(
       activeSession: activeSession,
       editingSession: editingSession ?? this.editingSession,
       pastSessions: pastSessions ?? this.pastSessions,
+      likesBySession: likesBySession ?? this.likesBySession,
+      commentsBySession: commentsBySession ?? this.commentsBySession,
     );
   }
 }
@@ -33,7 +41,13 @@ class SessionLogState {
 class SessionLogViewModel extends Notifier<SessionLogState> {
   @override
   SessionLogState build() {
-    return const SessionLogState(activeSession: null, editingSession: null, pastSessions: <Session>[]);
+    return SessionLogState(
+      activeSession: null,
+      editingSession: null,
+      pastSessions: <Session>[],
+      likesBySession: <String, Set<String>>{},
+      commentsBySession: <String, List<ActivityComment>>{},
+    );
   }
 
   void startSession(ClimbType type, {String? gymName}) {
@@ -63,10 +77,20 @@ class SessionLogViewModel extends Notifier<SessionLogState> {
     if (existingIndex >= 0) {
       final List<Session> updated = <Session>[...state.pastSessions];
       updated[existingIndex] = finished;
-    state = SessionLogState(activeSession: null, editingSession: state.editingSession, pastSessions: updated);
+    state = SessionLogState(
+        activeSession: null,
+        editingSession: state.editingSession,
+        pastSessions: updated,
+        likesBySession: state.likesBySession,
+        commentsBySession: state.commentsBySession);
     } else {
       final List<Session> history = <Session>[finished, ...state.pastSessions];
-      state = SessionLogState(activeSession: null, editingSession: state.editingSession, pastSessions: history);
+      state = SessionLogState(
+          activeSession: null,
+          editingSession: state.editingSession,
+          pastSessions: history,
+          likesBySession: state.likesBySession,
+          commentsBySession: state.commentsBySession);
     }
   }
 
@@ -91,10 +115,20 @@ class SessionLogViewModel extends Notifier<SessionLogState> {
     if (existingIndex >= 0) {
       final List<Session> updated = <Session>[...state.pastSessions];
       updated[existingIndex] = current;
-      state = SessionLogState(activeSession: null, editingSession: null, pastSessions: updated);
+      state = SessionLogState(
+          activeSession: null,
+          editingSession: null,
+          pastSessions: updated,
+          likesBySession: state.likesBySession,
+          commentsBySession: state.commentsBySession);
     } else {
       final List<Session> history = <Session>[current, ...state.pastSessions];
-      state = SessionLogState(activeSession: null, editingSession: null, pastSessions: history);
+      state = SessionLogState(
+          activeSession: null,
+          editingSession: null,
+          pastSessions: history,
+          likesBySession: state.likesBySession,
+          commentsBySession: state.commentsBySession);
     }
   }
 
@@ -505,6 +539,28 @@ class SessionLogViewModel extends Notifier<SessionLogState> {
       final Session s = state.editingSession!;
       state = state.copyWith(editingSession: s.copyWith(rating: rating, clearRating: rating == null));
     }
+  }
+
+  // --- Social (prototype) ---
+  void toggleLike(String sessionId, {required String user}) {
+    final Map<String, Set<String>> map = Map<String, Set<String>>.from(state.likesBySession);
+    final Set<String> set = map.putIfAbsent(sessionId, () => <String>{});
+    if (set.contains(user)) {
+      set.remove(user);
+    } else {
+      set.add(user);
+    }
+    map[sessionId] = set;
+    state = state.copyWith(likesBySession: map);
+  }
+
+  void addComment(String sessionId, ActivityComment c) {
+    final Map<String, List<ActivityComment>> map =
+        Map<String, List<ActivityComment>>.from(state.commentsBySession);
+    final List<ActivityComment> list = List<ActivityComment>.from(map[sessionId] ?? <ActivityComment>[]);
+    list.add(c);
+    map[sessionId] = list;
+    state = state.copyWith(commentsBySession: map);
   }
 }
 

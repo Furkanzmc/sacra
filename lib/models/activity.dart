@@ -53,3 +53,18 @@ class ActivityEntry {
   }
 }
 
+@immutable
+class ActivityComment {
+  final String id;
+  final String user;
+  final String text;
+  final DateTime timestamp;
+
+  const ActivityComment({
+    required this.id,
+    required this.user,
+    required this.text,
+    required this.timestamp,
+  });
+}
+

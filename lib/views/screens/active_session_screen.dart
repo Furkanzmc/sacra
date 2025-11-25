@@ -7,7 +7,8 @@ import '../../models/activity.dart';
 import '../../models/session.dart';
 import '../../viewmodels/session_log_view_model.dart';
 import '../theme/app_theme.dart';
-import '../widgets/responsive.dart';
+// import '../widgets/responsive.dart';
+import '../../viewmodels/profile_view_model.dart';
 import '../widgets/v_grade_scrubber.dart';
 import '../widgets/adaptive.dart';
 import '../widgets/navigation_scope.dart';
@@ -341,6 +342,13 @@ class ActiveSessionScreen extends ConsumerWidget {
 
   final Session? session;
 
+  // Prototype toggle: owner vs visitor view
+  static final StateProvider<bool> _ownerViewProvider =
+      StateProvider<bool>((StateProviderRef<bool> ref) => true);
+  // Owner edit toggle (shows composer for past sessions)
+  static final StateProvider<bool> _ownerEditModeProvider =
+      StateProvider<bool>((StateProviderRef<bool> ref) => false);
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final SessionLogState state = ref.watch(sessionLogProvider);
@@ -385,20 +393,30 @@ class ActiveSessionScreen extends ConsumerWidget {
           return base.copyWith(fontSize: fs != null ? fs * 0.7 : null);
         }(),
       ),
-      actions: null,
-      body: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: Responsive.constrainedWidth(context),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: liveSession == null
-                ? _StartOptions(onStart: vm.startSession)
-                : _ActiveBody(session: liveSession),
-          ),
+      actions: <Widget>[
+        Consumer(
+          builder: (BuildContext context, WidgetRef ref, _) {
+            final bool owner = ref.watch(_ownerViewProvider);
+            return AdaptiveIconButton(
+              onPressed: () => ref.read(_ownerViewProvider.notifier).state = !owner,
+              tooltip: owner ? 'Show visitor view' : 'Show owner view',
+              icon: Icon(owner
+                  ? (defaultTargetPlatform == TargetPlatform.iOS
+                      ? CupertinoIcons.eye
+                      : Icons.visibility)
+                  : (defaultTargetPlatform == TargetPlatform.iOS
+                      ? CupertinoIcons.person_crop_circle
+                      : Icons.person)),
+            );
+          },
         ),
-      ),
+      ],
+      body: liveSession == null
+          ? Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: _StartOptions(onStart: vm.startSession),
+            )
+          : _ActiveBody(session: liveSession),
     );
   }
 }
@@ -496,50 +514,165 @@ class _ActiveBody extends ConsumerWidget {
       if (st.editingSession?.id == session.id) return st.editingSession!;
       return session;
     }();
-    final bool isEditingPast = !isActive; // this widget always has a non-null session
-    return Column(
+    // final bool isEditingPast = !isActive; // no longer used
+    final bool ownerView = ref.watch(ActiveSessionScreen._ownerViewProvider);
+    final bool ownerEditing = ref.watch(ActiveSessionScreen._ownerEditModeProvider);
+    final String currentUser = ref.watch(profileProvider).displayName;
+    final int likeCount = st.likesBySession[session.id]?.length ?? 0;
+    final List<ActivityComment> comments = st.commentsBySession[session.id] ?? <ActivityComment>[];
+    final bool iLiked = (st.likesBySession[session.id] ?? <String>{}).contains(currentUser);
+    if (!ownerView) {
+      return Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-        Text(
-          adaptiveFormatTime(context, displaySession.startTime),
-          style: AppTextStyles.body,
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        // Notes field moved into the action area below.
-        Expanded(
-          child: _AttemptsList(attempts: displaySession.attempts),
-        ),
-          const SizedBox(height: AppSpacing.md),
-        SafeArea(
-          top: false,
-          child: WillPopScope(
-            onWillPop: () async {
-              if (isEditingPast) {
-                vm.saveActiveSessionEdits();
-              }
-              return true;
-            },
-            child: _TypeAwareAttemptComposer(
-              type: displaySession.climbType,
-              onAdd: vm.addAttempt,
-              readOnly: !isActive,
-              showEndAction: isActive,
-              onEndSession: () async {
-                final bool confirmed = await _confirmEndSession(context);
-                if (!confirmed) return false;
-                ref.read(sessionLogProvider.notifier).endSession();
-                if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
-                  if (Navigator.of(context).canPop()) {
-                    Navigator.of(context).pop();
-                  }
-                } else {
-                  final NavigationScope? scope = NavigationScope.of(context);
-                  scope?.setTab(0);
-                }
-                return true;
-              },
-            ),
+          Text(adaptiveFormatTime(context, displaySession.startTime), style: AppTextStyles.body),
+          const SizedBox(height: AppSpacing.sm),
+          // Viewer sees summary at top
+          _SummaryCard(
+            session: session,
+            likeCount: likeCount,
+            commentCount: comments.length,
+            liked: iLiked,
+            onToggleLike: () => vm.toggleLike(session.id, user: currentUser),
+            onShowComments: () => _showCommentsSheet(context, ref, session.id, currentUser),
+            onShowLikes: () => _showLikesSheet(context, ref, session.id),
+            likedUsers: (st.likesBySession[session.id] ?? <String>{}).toList(),
+            gymName: session.gymName,
           ),
+          const SizedBox(height: AppSpacing.md),
+          Expanded(child: _AttemptsList(attempts: displaySession.attempts)),
+        ],
+      ),
+      );
+    }
+    return Stack(
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
+          child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Text(adaptiveFormatTime(context, displaySession.startTime), style: AppTextStyles.body),
+            const SizedBox(height: AppSpacing.sm),
+            Expanded(
+              child: _AttemptsList(
+                attempts: displaySession.attempts,
+                bottomPadding:
+                    MediaQuery.of(context).padding.bottom + MediaQuery.of(context).size.height * 0.20,
+              ),
+            ),
+          ],
+        ),),
+        DraggableScrollableSheet(
+          key: ValueKey<String>('ownerSheet-${ownerEditing ? 'edit' : 'view'}'),
+          expand: true,
+          minChildSize: 0.18,
+          initialChildSize: ownerEditing ? 0.4 : 0.3,
+          maxChildSize: ownerEditing ? 0.6 : 0.5,
+          snap: true,
+          snapSizes: <double>[0.18, ownerEditing ? 0.4 : 0.3, ownerEditing ? 0.6 : 0.5],
+          builder: (BuildContext context, ScrollController controller) {
+            return Material(
+              elevation: 8,
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: SafeArea(
+                top: false,
+                bottom: true,
+                child: ListView(
+                  controller: controller,
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  children: <Widget>[
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.outlineVariant,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    if (!isActive && !ownerEditing) ...<Widget>[
+                      Container(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            _SummaryCard(
+                              session: session,
+                              likeCount: likeCount,
+                              commentCount: comments.length,
+                              liked: iLiked,
+                              onToggleLike: () => vm.toggleLike(session.id, user: currentUser),
+                              onShowComments: () => _showCommentsSheet(context, ref, session.id, currentUser),
+                              onShowLikes: () => _showLikesSheet(context, ref, session.id),
+                              likedUsers: (st.likesBySession[session.id] ?? <String>{}).toList(),
+                              gymName: session.gymName,
+                              showEditButton: true,
+                              onEdit: () => ref.read(ActiveSessionScreen._ownerEditModeProvider.notifier).state = true,
+                              flat: true,
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            _TypeAwareAttemptComposer(
+                              type: displaySession.climbType,
+                              onAdd: vm.addAttempt,
+                              readOnly: true,
+                              showEndAction: false,
+                              showAttemptControls: false,
+                              flat: true,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ] else ...<Widget>[
+                      _TypeAwareAttemptComposer(
+                        type: displaySession.climbType,
+                        onAdd: vm.addAttempt,
+                        readOnly: !(isActive || ownerEditing),
+                        showEndAction: isActive,
+                        onEndSession: () async {
+                          final bool confirmed = await _confirmEndSession(context);
+                          if (!confirmed) return false;
+                          ref.read(sessionLogProvider.notifier).endSession();
+                          if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
+                            if (Navigator.of(context).canPop()) {
+                              Navigator.of(context).pop();
+                            }
+                          } else {
+                            final NavigationScope? scope = NavigationScope.of(context);
+                            scope?.setTab(0);
+                          }
+                          return true;
+                        },
+                        onSave: ownerEditing
+                            ? () {
+                                ref.read(sessionLogProvider.notifier).saveActiveSessionEdits();
+                                ref.read(ActiveSessionScreen._ownerEditModeProvider.notifier).state = false;
+                              }
+                            : null,
+                        onCancel: ownerEditing
+                            ? () {
+                                ref.read(sessionLogProvider.notifier).clearEditingSession();
+                                ref.read(ActiveSessionScreen._ownerEditModeProvider.notifier).state = false;
+                              }
+                            : null,
+                        showAttemptControls: true,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ],
     );
@@ -645,6 +778,10 @@ class _TypeAwareAttemptComposer extends StatefulWidget {
     this.readOnly = false,
     this.showEndAction = false,
     this.onEndSession,
+    this.onSave,
+    this.onCancel,
+    this.showAttemptControls = true,
+    this.flat = false,
   });
 
   final ClimbType type;
@@ -652,6 +789,10 @@ class _TypeAwareAttemptComposer extends StatefulWidget {
   final bool readOnly;
   final bool showEndAction;
   final Future<bool> Function()? onEndSession;
+  final VoidCallback? onSave;
+  final VoidCallback? onCancel;
+  final bool showAttemptControls;
+  final bool flat;
 
   @override
   State<_TypeAwareAttemptComposer> createState() => _TypeAwareAttemptComposerState();
@@ -672,14 +813,7 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
+    final Widget body = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           // Notes field now lives inside the action area for all activity types.
@@ -718,21 +852,14 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
                   tooltip: 'End Session',
                   icon: Icon(_adaptiveStopIcon()),
                 ),
-              // Edit toggle on the right to enable editing when viewing
-              if (widget.readOnly)
-                AdaptiveIconButton(
-                  onPressed: () => setState(() => _editable = !_editable),
-                  tooltip: _editable ? 'Disable editing' : 'Enable editing',
-                  icon: Icon(
-                    defaultTargetPlatform == TargetPlatform.iOS ? CupertinoIcons.lock_open : Icons.lock_open,
-                  ),
-                ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
-          const Text('Add Attempt'),
-          const SizedBox(height: AppSpacing.sm),
-          if (widget.type == ClimbType.bouldering)
+        const SizedBox(height: AppSpacing.xs),
+        if (widget.showAttemptControls) ...[
+            const Text('Add Attempt'),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+          if (widget.showAttemptControls && widget.type == ClimbType.bouldering)
             IgnorePointer(
               ignoring: !_editable,
               child: Opacity(
@@ -745,7 +872,7 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
                 ),
               ),
             )
-          else if (widget.type == ClimbType.topRope || widget.type == ClimbType.lead)
+          else if (widget.showAttemptControls && (widget.type == ClimbType.topRope || widget.type == ClimbType.lead))
             IgnorePointer(
               ignoring: !_editable,
               child: Opacity(
@@ -758,7 +885,7 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
                 ),
               ),
             )
-          else
+          else if (widget.showAttemptControls)
             Wrap(
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
@@ -795,8 +922,49 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
                 ),
               ],
             ),
-          ],
-        ),
+        if (widget.onSave != null || widget.onCancel != null)
+          Column(
+            children: <Widget>[
+              const SizedBox(height: AppSpacing.sm),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: <Widget>[
+                  if (widget.onCancel != null)
+                    TextButton.icon(
+                      onPressed: widget.onCancel,
+                      icon: const Icon(Icons.close, size: 16),
+                      label: const Text('Cancel'),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      ),
+                    ),
+                  if (widget.onSave != null) const SizedBox(width: AppSpacing.sm),
+                  if (widget.onSave != null)
+                    FilledButton.icon(
+                      onPressed: widget.onSave,
+                      icon: const Icon(Icons.save, size: 16),
+                      label: const Text('Save'),
+                      style: FilledButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      );
+    if (widget.flat) return body;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: body,
     );
   }
 
@@ -856,9 +1024,10 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
 }
 
 class _AttemptsList extends ConsumerWidget {
-  const _AttemptsList({required this.attempts});
+  const _AttemptsList({required this.attempts, this.bottomPadding});
 
   final List<ClimbAttempt> attempts;
+  final double? bottomPadding;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -866,6 +1035,7 @@ class _AttemptsList extends ConsumerWidget {
       return const _EmptyAttempts();
     }
     return ListView.separated(
+      padding: EdgeInsets.only(bottom: bottomPadding ?? AppSpacing.md),
       itemCount: attempts.length,
       separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
       itemBuilder: (BuildContext context, int index) {
@@ -1533,6 +1703,341 @@ class _LeadControlsState extends ConsumerState<_LeadControls> {
       },
     );
   }
+}
+
+class _SummaryCard extends StatelessWidget {
+  const _SummaryCard({
+    required this.session,
+    required this.likeCount,
+    required this.commentCount,
+    required this.liked,
+    required this.onToggleLike,
+    required this.onShowComments,
+    required this.onShowLikes,
+    required this.likedUsers,
+    this.gymName,
+    this.showEditButton = false,
+    this.onEdit,
+    this.flat = false,
+  });
+  final Session session;
+  final int likeCount;
+  final int commentCount;
+  final bool liked;
+  final VoidCallback onToggleLike;
+  final VoidCallback onShowComments;
+  final VoidCallback onShowLikes;
+  final List<String> likedUsers;
+  final String? gymName;
+  final bool showEditButton;
+  final VoidCallback? onEdit;
+  final bool flat;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final int totalRoutes = session.attempts.length;
+    String? maxV;
+    String? maxYds;
+    for (final ClimbAttempt a in session.attempts) {
+      if (a is BoulderingAttempt) {
+        final String g = a.grade.value;
+        if (maxV == null || _vIndex(g) > _vIndex(maxV)) maxV = g;
+      } else if (a is TopRopeAttempt) {
+        final String g = a.grade.value;
+        if (maxYds == null || _ydsIndex(g) > _ydsIndex(maxYds)) maxYds = g;
+      } else if (a is LeadAttempt) {
+        final String g = a.grade.value;
+        if (maxYds == null || _ydsIndex(g) > _ydsIndex(maxYds)) maxYds = g;
+      }
+    }
+    final Widget body = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Text('Summary', style: Theme.of(context).textTheme.titleMedium),
+              const Spacer(),
+              if (showEditButton && onEdit != null)
+                TextButton.icon(onPressed: onEdit, icon: const Icon(Icons.edit), label: const Text('Edit')),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.md,
+            runSpacing: AppSpacing.sm,
+            children: <Widget>[
+              _pill(context, Icons.route, 'Routes $totalRoutes'),
+              _pill(context, Icons.terrain, 'Max V ${maxV ?? '-'}'),
+              _pill(context, Icons.safety_check, 'Max YDS ${maxYds ?? '-'}'),
+              if ((gymName ?? '').isNotEmpty)
+                _pill(context, Icons.location_on_outlined, gymName!),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.transparent,
+                  border: Border.all(color: scheme.outlineVariant, width: 1),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    GestureDetector(
+                      onTap: onToggleLike,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(liked ? Icons.favorite : Icons.favorite_border,
+                              size: 18, color: liked ? scheme.primary : null),
+                          const SizedBox(width: 6),
+                          Text('$likeCount'),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: onShowLikes,
+                      child: _likedAvatars(context, likedUsers),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              TextButton.icon(
+                onPressed: onShowComments,
+                icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                label: Text('$commentCount'),
+              ),
+              const Spacer(),
+            ],
+          ),
+        ],
+      );
+    if (flat) return body;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: body,
+    );
+  }
+
+  Widget _pill(BuildContext context, IconData icon, String text) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: scheme.outlineVariant, width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(icon, size: 14),
+          const SizedBox(width: 6),
+          Text(text, style: Theme.of(context).textTheme.bodySmall),
+        ],
+      ),
+    );
+  }
+
+  int _vIndex(String v) {
+    const List<String> order = <String>[
+      'V0','V1','V2','V3','V4','V5','V6','V7','V8','V9','V10','V11','V12','V13','V14','V15','V16'
+    ];
+    final int i = order.indexOf(v);
+    return i < 0 ? -1 : i;
+  }
+
+  int _ydsIndex(String y) {
+    const List<String> order = <String>[
+      '5.4','5.5','5.6','5.7','5.8','5.9',
+      '5.10a','5.10b','5.10c','5.10d',
+      '5.11a','5.11b','5.11c','5.11d',
+      '5.12a','5.12b','5.12c','5.12d',
+      '5.13a','5.13b','5.13c','5.13d',
+      '5.14a','5.14b','5.14c','5.14d',
+      '5.15a','5.15b','5.15c','5.15d',
+    ];
+    final int i = order.indexOf(y);
+    return i < 0 ? -1 : i;
+  }
+
+  Widget _likedAvatars(BuildContext context, List<String> users) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final List<String> show = users.length > 3 ? users.sublist(0, 3) : users;
+    final double width = show.isEmpty ? 0 : (14.0 * (show.length - 1) + 16.0);
+    return SizedBox(
+      width: width,
+      height: 16,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: List<Widget>.generate(show.length, (int i) {
+          final String name = show[i];
+          final String init = _initials(name);
+          return Positioned(
+            left: i * 14.0,
+            child: CircleAvatar(
+              radius: 8,
+              backgroundColor: scheme.secondaryContainer,
+              child: Text(init, style: TextStyle(fontSize: 9, color: scheme.onSecondaryContainer)),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  String _initials(String displayName) {
+    final List<String> parts = displayName.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts.first.isEmpty ? '?' : parts.first.characters.first.toUpperCase();
+    return (parts.first.characters.first + parts.last.characters.first).toUpperCase();
+  }
+}
+
+Future<void> _showLikesSheet(BuildContext context, WidgetRef ref, String sessionId) async {
+  final List<String> users = <String>[...((ref.read(sessionLogProvider).likesBySession[sessionId] ?? <String>{}))];
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    showDragHandle: true,
+    builder: (BuildContext context) {
+      return Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text('Likes', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: AppSpacing.md),
+            if (users.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(AppSpacing.sm),
+                child: Text('No likes yet'),
+              )
+            else
+              ...users.map((String u) => ListTile(leading: const Icon(Icons.person), title: Text(u))),
+            const SizedBox(height: AppSpacing.md),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+Future<void> _showCommentsSheet(
+  BuildContext context,
+  WidgetRef ref,
+  String sessionId,
+  String currentUser,
+) async {
+  final TextEditingController ctrl = TextEditingController();
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    showDragHandle: true,
+    builder: (BuildContext context) {
+      final List<ActivityComment> comments =
+          ref.watch(sessionLogProvider).commentsBySession[sessionId] ?? <ActivityComment>[];
+      return Padding(
+        padding: EdgeInsets.only(
+          left: AppSpacing.md,
+          right: AppSpacing.md,
+          top: AppSpacing.md,
+          bottom: AppSpacing.md + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Comments', style: Theme.of(context).textTheme.titleMedium),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            if (comments.isEmpty)
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: EdgeInsets.all(AppSpacing.sm),
+                  child: Text('No comments yet'),
+                ),
+              )
+            else
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: comments.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (BuildContext context, int i) {
+                    final ActivityComment c = comments[i];
+                    return ListTile(
+                      leading: const Icon(Icons.person),
+                      title: Text(c.user),
+                      subtitle: Text(c.text),
+                      trailing: Text(adaptiveFormatTime(context, c.timestamp)),
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: TextField(
+                    controller: ctrl,
+                    decoration: const InputDecoration(hintText: 'Add a comment'),
+                    onSubmitted: (String v) {
+                      if (v.trim().isEmpty) return;
+                      ref.read(sessionLogProvider.notifier).addComment(
+                            sessionId,
+                            ActivityComment(
+                              id: DateTime.now().millisecondsSinceEpoch.toString(),
+                              user: currentUser,
+                              text: v.trim(),
+                              timestamp: DateTime.now(),
+                            ),
+                          );
+                      ctrl.clear();
+                    },
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                IconButton(
+                  icon: const Icon(Icons.send),
+                  onPressed: () {
+                    final String v = ctrl.text.trim();
+                    if (v.isEmpty) return;
+                    ref.read(sessionLogProvider.notifier).addComment(
+                          sessionId,
+                          ActivityComment(
+                            id: DateTime.now().millisecondsSinceEpoch.toString(),
+                            user: currentUser,
+                            text: v,
+                            timestamp: DateTime.now(),
+                          ),
+                        );
+                    ctrl.clear();
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    },
+  );
 }
 
 class _HeightToggleButton extends StatelessWidget {
