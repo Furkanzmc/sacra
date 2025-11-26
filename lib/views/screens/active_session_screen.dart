@@ -522,29 +522,87 @@ class _ActiveBody extends ConsumerWidget {
     final List<ActivityComment> comments = st.commentsBySession[session.id] ?? <ActivityComment>[];
     final bool iLiked = (st.likesBySession[session.id] ?? <String>{}).contains(currentUser);
     if (!ownerView) {
-      return Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      return Stack(
         children: <Widget>[
-          Text(adaptiveFormatTime(context, displaySession.startTime), style: AppTextStyles.body),
-          const SizedBox(height: AppSpacing.sm),
-          // Viewer sees summary at top
-          _SummaryCard(
-            session: session,
-            likeCount: likeCount,
-            commentCount: comments.length,
-            liked: iLiked,
-            onToggleLike: () => vm.toggleLike(session.id, user: currentUser),
-            onShowComments: () => _showCommentsSheet(context, ref, session.id, currentUser),
-            onShowLikes: () => _showLikesSheet(context, ref, session.id),
-            likedUsers: (st.likesBySession[session.id] ?? <String>{}).toList(),
-            gymName: session.gymName,
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Text(adaptiveFormatTime(context, displaySession.startTime), style: AppTextStyles.body),
+                const SizedBox(height: AppSpacing.sm),
+                Expanded(
+                  child: _AttemptsList(
+                    attempts: displaySession.attempts,
+                    bottomPadding: MediaQuery.of(context).padding.bottom +
+                        MediaQuery.of(context).size.height * 0.20,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          Expanded(child: _AttemptsList(attempts: displaySession.attempts)),
+          DraggableScrollableSheet(
+            expand: true,
+            minChildSize: 0.18,
+            initialChildSize: 0.3,
+            maxChildSize: 0.5,
+            snap: true,
+            snapSizes: <double>[0.18, 0.3, 0.5],
+            builder: (BuildContext context, ScrollController controller) {
+              return Material(
+                elevation: 8,
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                child: SafeArea(
+                  top: false,
+                  bottom: true,
+                  child: ListView(
+                    controller: controller,
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    children: <Widget>[
+                      Center(
+                        child: Container(
+                          width: 36,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.outlineVariant,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Container(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            _SummaryCard(
+                              session: session,
+                              likeCount: likeCount,
+                              commentCount: comments.length,
+                              liked: iLiked,
+                              onToggleLike: () => vm.toggleLike(session.id, user: currentUser),
+                              onShowComments: () => _showCommentsSheet(context, ref, session.id, currentUser),
+                              onShowLikes: () => _showLikesSheet(context, ref, session.id),
+                              likedUsers: (st.likesBySession[session.id] ?? <String>{}).toList(),
+                              gymName: session.gymName,
+                              flat: true,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
         ],
-      ),
       );
     }
     return Stack(
@@ -802,7 +860,7 @@ class _TypeAwareAttemptComposerState extends State<_TypeAwareAttemptComposer> {
   final TextEditingController _gradeCtrl = TextEditingController();
   final TextEditingController _heightCtrl = TextEditingController();
   bool _completed = false;
-  late bool _editable = !widget.readOnly;
+  late final bool _editable = !widget.readOnly;
 
   @override
   void dispose() {
