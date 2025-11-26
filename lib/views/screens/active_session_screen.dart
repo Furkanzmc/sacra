@@ -2076,12 +2076,16 @@ class _SummaryCard extends StatelessWidget {
 
 Future<void> _showLikesSheet(BuildContext context, WidgetRef ref, String sessionId) async {
   final List<String> users = <String>[...((ref.read(sessionLogProvider).likesBySession[sessionId] ?? <String>{}))];
+  final bool many = users.length > 8;
   await showModalBottomSheet<void>(
     context: context,
-    isScrollControlled: true,
+    // For small lists, let the sheet size to content. For longer lists, allow larger, scrollable height.
+    isScrollControlled: many,
     useSafeArea: true,
     showDragHandle: true,
     builder: (BuildContext context) {
+      final double maxHeight = MediaQuery.of(context).size.height * 0.6;
+      final double bottomPad = MediaQuery.of(context).padding.bottom + AppSpacing.lg;
       return Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
@@ -2095,9 +2099,22 @@ Future<void> _showLikesSheet(BuildContext context, WidgetRef ref, String session
                 padding: EdgeInsets.all(AppSpacing.sm),
                 child: Text('No likes yet'),
               )
+            else if (many)
+              SizedBox(
+                height: maxHeight,
+                child: ListView.separated(
+                  itemCount: users.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  padding: EdgeInsets.only(bottom: bottomPad),
+                  itemBuilder: (BuildContext _, int i) => ListTile(
+                    leading: const Icon(Icons.person),
+                    title: Text(users[i]),
+                  ),
+                ),
+              )
             else
               ...users.map((String u) => ListTile(leading: const Icon(Icons.person), title: Text(u))),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: bottomPad),
           ],
         ),
       );
