@@ -13,6 +13,7 @@ class SessionLogState {
     required this.pastSessions,
     required this.likesBySession,
     required this.commentsBySession,
+    required this.commentLikesById,
   });
 
   final Session? activeSession;
@@ -20,6 +21,8 @@ class SessionLogState {
   final List<Session> pastSessions;
   final Map<String, Set<String>> likesBySession;
   final Map<String, List<ActivityComment>> commentsBySession;
+  // commentId -> set of user display names who liked that comment
+  final Map<String, Set<String>> commentLikesById;
 
   SessionLogState copyWith({
     Session? activeSession,
@@ -27,6 +30,7 @@ class SessionLogState {
     List<Session>? pastSessions,
     Map<String, Set<String>>? likesBySession,
     Map<String, List<ActivityComment>>? commentsBySession,
+    Map<String, Set<String>>? commentLikesById,
   }) {
     return SessionLogState(
       activeSession: activeSession,
@@ -34,6 +38,7 @@ class SessionLogState {
       pastSessions: pastSessions ?? this.pastSessions,
       likesBySession: likesBySession ?? this.likesBySession,
       commentsBySession: commentsBySession ?? this.commentsBySession,
+      commentLikesById: commentLikesById ?? this.commentLikesById,
     );
   }
 }
@@ -47,6 +52,7 @@ class SessionLogViewModel extends Notifier<SessionLogState> {
       pastSessions: <Session>[],
       likesBySession: <String, Set<String>>{},
       commentsBySession: <String, List<ActivityComment>>{},
+      commentLikesById: <String, Set<String>>{},
     );
   }
 
@@ -82,7 +88,8 @@ class SessionLogViewModel extends Notifier<SessionLogState> {
         editingSession: state.editingSession,
         pastSessions: updated,
         likesBySession: state.likesBySession,
-        commentsBySession: state.commentsBySession);
+        commentsBySession: state.commentsBySession,
+        commentLikesById: state.commentLikesById);
     } else {
       final List<Session> history = <Session>[finished, ...state.pastSessions];
       state = SessionLogState(
@@ -90,7 +97,8 @@ class SessionLogViewModel extends Notifier<SessionLogState> {
           editingSession: state.editingSession,
           pastSessions: history,
           likesBySession: state.likesBySession,
-          commentsBySession: state.commentsBySession);
+          commentsBySession: state.commentsBySession,
+          commentLikesById: state.commentLikesById);
     }
   }
 
@@ -120,7 +128,8 @@ class SessionLogViewModel extends Notifier<SessionLogState> {
           editingSession: null,
           pastSessions: updated,
           likesBySession: state.likesBySession,
-          commentsBySession: state.commentsBySession);
+          commentsBySession: state.commentsBySession,
+          commentLikesById: state.commentLikesById);
     } else {
       final List<Session> history = <Session>[current, ...state.pastSessions];
       state = SessionLogState(
@@ -128,7 +137,8 @@ class SessionLogViewModel extends Notifier<SessionLogState> {
           editingSession: null,
           pastSessions: history,
           likesBySession: state.likesBySession,
-          commentsBySession: state.commentsBySession);
+          commentsBySession: state.commentsBySession,
+          commentLikesById: state.commentLikesById);
     }
   }
 
@@ -561,6 +571,41 @@ class SessionLogViewModel extends Notifier<SessionLogState> {
     list.add(c);
     map[sessionId] = list;
     state = state.copyWith(commentsBySession: map);
+  }
+
+  void editComment(String sessionId, String commentId, String newText) {
+    final Map<String, List<ActivityComment>> map =
+        Map<String, List<ActivityComment>>.from(state.commentsBySession);
+    final List<ActivityComment> list = List<ActivityComment>.from(map[sessionId] ?? <ActivityComment>[]);
+    final int idx = list.indexWhere((ActivityComment c) => c.id == commentId);
+    if (idx < 0) return;
+    final ActivityComment old = list[idx];
+    list[idx] = ActivityComment(id: old.id, user: old.user, text: newText, timestamp: old.timestamp);
+    map[sessionId] = list;
+    state = state.copyWith(commentsBySession: map);
+  }
+
+  void deleteComment(String sessionId, String commentId) {
+    final Map<String, List<ActivityComment>> map =
+        Map<String, List<ActivityComment>>.from(state.commentsBySession);
+    final List<ActivityComment> list = List<ActivityComment>.from(map[sessionId] ?? <ActivityComment>[]);
+    map[sessionId] = list.where((ActivityComment c) => c.id != commentId).toList();
+    // also clear likes for that comment
+    final Map<String, Set<String>> likes = Map<String, Set<String>>.from(state.commentLikesById);
+    likes.remove(commentId);
+    state = state.copyWith(commentsBySession: map, commentLikesById: likes);
+  }
+
+  void toggleCommentLike(String commentId, {required String user}) {
+    final Map<String, Set<String>> likes = Map<String, Set<String>>.from(state.commentLikesById);
+    final Set<String> set = likes.putIfAbsent(commentId, () => <String>{});
+    if (set.contains(user)) {
+      set.remove(user);
+    } else {
+      set.add(user);
+    }
+    likes[commentId] = set;
+    state = state.copyWith(commentLikesById: likes);
   }
 }
 

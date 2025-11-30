@@ -2129,6 +2129,7 @@ Future<void> _showCommentsSheet(
   String currentUser,
 ) async {
   final TextEditingController ctrl = TextEditingController();
+  final FocusNode focus = FocusNode();
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -2137,90 +2138,212 @@ Future<void> _showCommentsSheet(
     builder: (BuildContext context) {
       final List<ActivityComment> comments =
           ref.watch(sessionLogProvider).commentsBySession[sessionId] ?? <ActivityComment>[];
-      return Padding(
-        padding: EdgeInsets.only(
-          left: AppSpacing.md,
-          right: AppSpacing.md,
-          top: AppSpacing.md,
-          bottom: AppSpacing.md + MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text('Comments', style: Theme.of(context).textTheme.titleMedium),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            if (comments.isEmpty)
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: EdgeInsets.all(AppSpacing.sm),
-                  child: Text('No comments yet'),
-                ),
-              )
-            else
-              Flexible(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: comments.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (BuildContext context, int i) {
-                    final ActivityComment c = comments[i];
-                    return ListTile(
-                      leading: const Icon(Icons.person),
-                      title: Text(c.user),
-                      subtitle: Text(c.text),
-                      trailing: Text(adaptiveFormatTime(context, c.timestamp)),
-                    );
-                  },
-                ),
-              ),
-            const SizedBox(height: AppSpacing.md),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: TextField(
-                    controller: ctrl,
-                    decoration: const InputDecoration(hintText: 'Add a comment'),
-                    onSubmitted: (String v) {
-                      if (v.trim().isEmpty) return;
-                      ref.read(sessionLogProvider.notifier).addComment(
-                            sessionId,
-                            ActivityComment(
-                              id: DateTime.now().millisecondsSinceEpoch.toString(),
-                              user: currentUser,
-                              text: v.trim(),
-                              timestamp: DateTime.now(),
-                            ),
-                          );
-                      ctrl.clear();
-                    },
+      final Map<String, Set<String>> commentLikes = ref.watch(sessionLogProvider).commentLikesById;
+      final List<Buddy> buddies = ref.watch(profileProvider).buddies;
+      return StatefulBuilder(
+        builder: (BuildContext context, void Function(void Function()) setModalState) {
+          List<Buddy> suggestions = <Buddy>[];
+          final TextSelection sel = ctrl.selection;
+          final String text = ctrl.text;
+          if (sel.start >= 0 && sel.start <= text.length) {
+            final int at = text.lastIndexOf('@', sel.start - 1);
+            if (at >= 0) {
+              final String after = text.substring(at + 1, sel.start);
+              if (after.isNotEmpty && !after.contains(' ')) {
+                final String q = after.toLowerCase();
+                suggestions = buddies.where((Buddy b) => b.name.toLowerCase().startsWith(q)).toList();
+              }
+            }
+          }
+          void insertMention(Buddy b) {
+            final int start = ctrl.selection.start;
+            final int at = ctrl.text.lastIndexOf('@', start - 1);
+            if (at >= 0) {
+              final String before = ctrl.text.substring(0, at);
+              final String after = ctrl.text.substring(start);
+              final String inserted = '@${b.name} ';
+              final String next = '$before$inserted$after';
+              ctrl.value = TextEditingValue(
+                text: next,
+                selection: TextSelection.collapsed(offset: (before + inserted).length),
+              );
+              setModalState(() {});
+              focus.requestFocus();
+            }
+          }
+          void submitComment() {
+            final String v = ctrl.text.trim();
+            if (v.isEmpty) return;
+            ref.read(sessionLogProvider.notifier).addComment(
+                  sessionId,
+                  ActivityComment(
+                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                    user: currentUser,
+                    text: v,
+                    timestamp: DateTime.now(),
                   ),
+                );
+            ctrl.clear();
+            setModalState(() {});
+          }
+          return Padding(
+            padding: EdgeInsets.only(
+              left: AppSpacing.md,
+              right: AppSpacing.md,
+              top: AppSpacing.md,
+              bottom: AppSpacing.md + MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Comments', style: Theme.of(context).textTheme.titleMedium),
                 ),
-                const SizedBox(width: AppSpacing.sm),
-                IconButton(
-                  icon: const Icon(Icons.send),
-                  onPressed: () {
-                    final String v = ctrl.text.trim();
-                    if (v.isEmpty) return;
-                    ref.read(sessionLogProvider.notifier).addComment(
-                          sessionId,
-                          ActivityComment(
-                            id: DateTime.now().millisecondsSinceEpoch.toString(),
-                            user: currentUser,
-                            text: v,
-                            timestamp: DateTime.now(),
+                const SizedBox(height: AppSpacing.md),
+                if (comments.isEmpty)
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: EdgeInsets.all(AppSpacing.sm),
+                      child: Text('No comments yet'),
+                    ),
+                  )
+                else
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: comments.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (BuildContext context, int i) {
+                        final ActivityComment c = comments[i];
+                        final Set<String> likedBy = commentLikes[c.id] ?? <String>{};
+                        final bool iLiked = likedBy.contains(currentUser);
+                        final bool mine = c.user == currentUser;
+                        return ListTile(
+                          leading: const Icon(Icons.person),
+                          title: Text(c.user),
+                          subtitle: Text(c.text),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              Text(adaptiveFormatTime(context, c.timestamp)),
+                              const SizedBox(width: AppSpacing.sm),
+                              GestureDetector(
+                                onTap: () {
+                                  ref.read(sessionLogProvider.notifier).toggleCommentLike(c.id, user: currentUser);
+                                  setModalState(() {});
+                                },
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: <Widget>[
+                                    Icon(iLiked ? Icons.favorite : Icons.favorite_border,
+                                        size: 18, color: iLiked ? Theme.of(context).colorScheme.primary : null),
+                                    const SizedBox(width: 4),
+                                    Text('${likedBy.length}'),
+                                  ],
+                                ),
+                              ),
+                              if (mine) ...<Widget>[
+                                const SizedBox(width: AppSpacing.sm),
+                                PopupMenuButton<String>(
+                                  onSelected: (String value) async {
+                                    if (value == 'edit') {
+                                      final TextEditingController ec = TextEditingController(text: c.text);
+                                      final String? newText = await showDialog<String>(
+                                        context: context,
+                                        builder: (BuildContext context) {
+                                          return AlertDialog(
+                                            title: const Text('Edit comment'),
+                                            content: TextField(
+                                              controller: ec,
+                                              maxLines: 3,
+                                              autofocus: true,
+                                            ),
+                                            actions: <Widget>[
+                                              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                                              TextButton(onPressed: () => Navigator.pop(context, ec.text.trim()), child: const Text('Save')),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                      if (newText != null && newText.isNotEmpty && newText != c.text) {
+                                        ref.read(sessionLogProvider.notifier).editComment(sessionId, c.id, newText);
+                                        setModalState(() {});
+                                      }
+                                    } else if (value == 'delete') {
+                                      ref.read(sessionLogProvider.notifier).deleteComment(sessionId, c.id);
+                                      setModalState(() {});
+                                    }
+                                  },
+                                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                                    const PopupMenuItem<String>(value: 'edit', child: Text('Edit')),
+                                    const PopupMenuItem<String>(value: 'delete', child: Text('Delete')),
+                                  ],
+                                ),
+                              ],
+                            ],
                           ),
                         );
-                    ctrl.clear();
-                  },
+                      },
+                    ),
+                  ),
+                const SizedBox(height: AppSpacing.md),
+                Stack(
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: TextField(
+                            controller: ctrl,
+                            focusNode: focus,
+                            decoration: const InputDecoration(hintText: 'Add a comment (use @ to mention)'),
+                            onChanged: (_) => setModalState(() {}),
+                            onSubmitted: (_) => submitComment(),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        IconButton(
+                          icon: const Icon(Icons.send),
+                          onPressed: submitComment,
+                        ),
+                      ],
+                    ),
+                    if (suggestions.isNotEmpty)
+                      Positioned(
+                        left: 0,
+                        right: 56, // leave space for send button
+                        bottom: 48,
+                        child: Material(
+                          elevation: 4,
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(8),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 240),
+                            child: ListView.separated(
+                              shrinkWrap: true,
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              itemCount: suggestions.length,
+                              separatorBuilder: (_, __) => const Divider(height: 1),
+                              itemBuilder: (BuildContext context, int i) {
+                                final Buddy b = suggestions[i];
+                                return ListTile(
+                                  dense: true,
+                                  leading: const Icon(Icons.person),
+                                  title: Text(b.name),
+                                  onTap: () => insertMention(b),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
+          );
+        },
       );
     },
   );
