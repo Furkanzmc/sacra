@@ -256,12 +256,17 @@ class _FullWidthSegment extends StatelessWidget {
         child: Container(
           width: double.infinity,
           alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+          constraints: const BoxConstraints(minHeight: 56),
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
           decoration: BoxDecoration(
             border: Border.all(color: CupertinoColors.separator.resolveFrom(context)),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Text(label, textAlign: TextAlign.center),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(fontSize: 18),
+          ),
         ),
       );
     }
@@ -274,12 +279,17 @@ class _FullWidthSegment extends StatelessWidget {
         child: Container(
           width: double.infinity,
           alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+          constraints: const BoxConstraints(minHeight: 56),
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
           decoration: BoxDecoration(
             border: Border.all(color: scheme.outlineVariant),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Text(label, textAlign: TextAlign.center),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
         ),
       ),
     );
@@ -316,12 +326,16 @@ class _Segment extends StatelessWidget {
         padding: EdgeInsets.zero,
         onPressed: onPressed,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          constraints: const BoxConstraints(minHeight: 44),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             border: Border.all(color: CupertinoColors.separator.resolveFrom(context)),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Text(label),
+          child: Text(
+            label,
+            style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(fontSize: 16),
+          ),
         ),
       );
     }
@@ -332,12 +346,16 @@ class _Segment extends StatelessWidget {
         onTap: onPressed,
         borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          constraints: const BoxConstraints(minHeight: 44),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             border: Border.all(color: scheme.outlineVariant),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Text(label),
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 16),
+          ),
         ),
       ),
     );
@@ -392,7 +410,7 @@ class _ScrollableShadowRowState extends State<_ScrollableShadowRow> {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     return SizedBox(
-      height: 56,
+      height: 64,
       child: Row(
         children: <Widget>[
           Expanded(
